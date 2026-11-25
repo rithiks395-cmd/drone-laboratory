@@ -59,7 +59,7 @@ const DroneFlightEntity: React.FC<{
 
     // Aerodynamic thrust vector
     const thrustAcc = droneState.thrust * 0.38;
-    const ax = -Math.sin(roll) * thrustAcc;
+    const ax = Math.sin(roll) * thrustAcc;
     const ay = Math.cos(pitch) * Math.cos(roll) * thrustAcc + gravity;
     const az = Math.sin(pitch) * thrustAcc;
 
@@ -141,6 +141,7 @@ export const FlightSimulator: React.FC = () => {
   // Phone remote controller pairing state
   const [roomCode, setRoomCode] = useState(() => generatePairingCode());
   const [isPhoneConnected, setIsPhoneConnected] = useState(false);
+  const [rxPacketCount, setRxPacketCount] = useState(0);
   const [isPairingModalOpen, setIsPairingModalOpen] = useState(false);
   const hostConnRef = useRef<DroneHostConnection | null>(null);
 
@@ -161,17 +162,36 @@ export const FlightSimulator: React.FC = () => {
     };
 
     host.onPacketReceived = (packet: ControllerPacket) => {
-      if (packet.takeoff) handleTakeoff();
-      else if (packet.land) handleLand();
-      else if (packet.reset) handleReset();
-      else if (packet.cameraToggle) cycleCameraMode();
-      else {
+      setRxPacketCount((c) => (c + 1) % 10000);
+
+      if (packet.takeoff) {
+        setDroneState((p) => ({
+          ...p,
+          pos: [p.pos[0], Math.max(2.5, p.pos[1] + 1.5), p.pos[2]],
+          vel: [0, 0.6, 0],
+          thrust: 5.4,
+        }));
+      } else if (packet.land) {
+        setDroneState((p) => ({
+          ...p,
+          thrust: 2.0,
+        }));
+      } else if (packet.reset) {
+        setDroneState({
+          pos: [0, 0.28, 0],
+          rot: [0, 0, 0],
+          vel: [0, 0, 0],
+          thrust: 0,
+        });
+      } else if (packet.cameraToggle) {
+        setCameraMode((prev) => (prev === 'CHASE' ? 'FPV' : prev === 'FPV' ? 'ORBIT' : 'CHASE'));
+      } else {
         // Direct mobile joystick input stream
         setDroneState((prev) => {
-          const nextThrust = packet.throttle;
-          const nextYaw = prev.rot[1] - packet.yaw * 0.08;
-          const nextPitch = packet.pitch * 0.38;
-          const nextRoll = packet.roll * 0.38;
+          const nextThrust = Math.max(0, Math.min(10, packet.throttle));
+          const nextYaw = prev.rot[1] - (packet.yaw || 0) * 0.08;
+          const nextPitch = (packet.pitch || 0) * 0.38;
+          const nextRoll = (packet.roll || 0) * 0.38;
           return {
             ...prev,
             rot: [nextPitch, nextYaw, nextRoll],
@@ -543,7 +563,17 @@ export const FlightSimulator: React.FC = () => {
             <span className="text-emerald-400 font-bold">{altitude}m</span>
             <span className="text-slate-400 ml-1">SPD:</span>
             <span className="text-cyan-300 font-bold">{speed}km/h</span>
+            <span className="text-slate-400 ml-1">THRUST:</span>
+            <span className="text-amber-400 font-bold">{droneState.thrust.toFixed(1)}</span>
           </div>
+
+          {/* Live Mobile Controller Status */}
+          {isPhoneConnected && (
+            <div className="flex items-center gap-1.5 bg-emerald-950/90 border border-emerald-400 text-emerald-300 px-3 py-1 rounded-xl shadow-glow-cyan text-[11px] font-bold animate-pulse">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span>📱 PHONE PAIRED ({rxPacketCount} PKTS)</span>
+            </div>
+          )}
 
           <div className="flex items-center gap-3 bg-[#0f172a]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-cyan-500/30">
             <div className="flex items-center gap-1 text-cyan-300">

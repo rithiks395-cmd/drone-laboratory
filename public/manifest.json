@@ -1,0 +1,28 @@
+{
+  "short_name": "UAV Lab",
+  "name": "UAV Virtual Lab - 3D Drone Engineering Simulator",
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#060911",
+  "theme_color": "#00f0ff",
+  "display": "standalone",
+  "orientation": "any",
+  "categories": ["education", "simulation", "engineering"]
+}

@@ -1,0 +1,237 @@
+import { ExperimentInfo } from '../types/experiments';
+
+export const EXPERIMENTS_LIST: ExperimentInfo[] = [
+  {
+    id: 1,
+    title: 'Payload and Weight Estimation of UAV',
+    shortTitle: 'Weight & Payload',
+    category: 'Design & Weight',
+    description: 'Estimate all sub-component masses, compute Maximum Takeoff Weight (MTOW), structural fraction, payload capacity, and required motor thrust-to-weight ratio.',
+    aim: 'To determine the all-up weight (AUW), empty weight, structural fraction, payload capacity, and thrust-to-weight ratio of a multirotor UAV through analytical component breakdown.',
+    softwareRequired: ['React Three Fiber 3D Simulation Engine', 'UAV Weight Analysis Matrix', 'Aerospace Load Estimator'],
+    componentsUsed: ['Quadcopter Carbon Frame (450mm)', '4x 2212 920KV Brushless Motors', '4x 30A ESCs', '4x 1045 Propellers', '3S 3300mAh LiPo Battery', 'Flight Controller (Pixhawk/APM/KK)', 'FS-iA6B 6CH Receiver', 'FPV Camera & 2-Axis Gimbal', 'Payload Mass'],
+    theory: 'The Maximum Takeoff Weight (MTOW) of a multirotor represents the total mass of the drone including structure, avionics, power system, and payload. For stable hovering and wind rejection, the total maximum thrust of all motors combined must provide a Thrust-to-Weight Ratio (TWR) of at least 2.0 : 1.',
+    procedure: [
+      'Enter or measure the mass of each structural and avionics component.',
+      'Sum individual component weights to find empty aircraft weight (We).',
+      'Add useful mission payload (camera, sensors, package delivery).',
+      'Compute the Thrust-to-Weight Ratio (TWR) using 4x motor thrust capacity.',
+      'Inspect the weight distribution pie chart and verify that payload does not exceed 30% MTOW for safe flight.'
+    ],
+    precautions: [
+      'Ensure the battery weight is within 30-40% of the total AUW to maintain adequate flight endurance.',
+      'Do not exceed maximum manufacturer motor thrust specifications.'
+    ],
+    completed: false
+  },
+  {
+    id: 2,
+    title: 'Fixed Wing UAV Frame and Avionics Components Assembling',
+    shortTitle: 'Fixed Wing Assembly',
+    category: 'Assembly',
+    description: 'Assemble airframe components (fuselage, wings, empennage) and integrate avionics (motor, ESC, servos, battery, flight controller) in 3D with exploded inspection.',
+    aim: 'To study the mechanical and electrical assembly sequence of a fixed-wing UAV, including airframe integration, control surface linkages, and avionics bus layout.',
+    softwareRequired: ['3D Interactive CAD Assembly Workspace', 'Exploded View Kinematics Engine', 'Avionics Wire Routing Tracer'],
+    componentsUsed: ['Aerodynamic Fuselage Pod', 'Left & Right Main Wings', 'Horizontal Stabilizer with Elevator', 'Vertical Fin with Rudder', 'Brushless Motor 2814', '40A ESC with 5V BEC', '9g Metal Gear Servos (x4)', 'Folding Propeller 11x6', '4S 2600mAh LiPo Battery', 'Flight Controller with Pitot Tube', '6-Channel PWM Receiver'],
+    theory: 'A fixed-wing aircraft generates aerodynamic lift from airflow over wings. Integrating avionics requires balancing mass along the longitudinal axis, aligning thrust line with fuselage datum, and ensuring servo linkage rods transmit zero mechanical slop to control horns.',
+    procedure: [
+      'Mount the brushless motor to the firewall with correct down-thrust and right-thrust angles.',
+      'Slide the carbon fiber wing spar into the fuselage and secure main wings.',
+      'Attach the horizontal stabilizer and vertical tail fin.',
+      'Install aileron and elevator pushrods into servo control horns.',
+      'Position the ESC in the cooling airflow channel and wire to the flight controller.',
+      'Verify center of gravity balance and simulate an exploded assembly view for structural inspection.'
+    ],
+    precautions: [
+      'Never connect battery until ESC calibration and motor rotation direction are verified.',
+      'Ensure pushrod z-bends are securely clipped to prevent inflight disengagement.'
+    ],
+    completed: false
+  },
+  {
+    id: 3,
+    title: "Calibration and Estimation of Motor's Thrust with Various ESCs and Propellers",
+    shortTitle: 'Thrust Calibration',
+    category: 'Propulsion',
+    description: 'Measure dynamic thrust, RPM, current draw, power consumption, and mechanical efficiency across diverse motor, ESC, and propeller combinations on a virtual test bench.',
+    aim: 'To evaluate and calibrate brushless motor thrust generation under variable propeller diameters, pitches, and ESC throttle signals, producing performance curves.',
+    softwareRequired: ['Virtual Dynamometer & Load Cell Simulator', 'Optical Tachometer Module', 'Power Analyzer Telemetry Plotter'],
+    componentsUsed: ['BLDC Motors (2205, 2212, 2814, 4114)', 'ESCs (20A, 30A, 40A, 60A)', 'Propellers (5x4.5, 8x4.5, 10x4.5, 12x4.5, 15x5.5; 2-blade & 3-blade)', 'Variable DC Lab Power Supply (7.4V - 22.2V)', 'High-precision Strain Gauge Load Cell', 'Optical RPM Sensor'],
+    theory: 'Static thrust generated by an actuator disk is governed by momentum theory: T = Ct * rho * n^2 * D^4. Mechanical power required scales with the 5th power of propeller diameter: P = Cp * rho * n^3 * D^5. Electrical power drawn is P_elec = V * I.',
+    procedure: [
+      'Select motor model, propeller diameter, pitch, and cell voltage.',
+      'Step throttle from 0% to 100% in 10% increments.',
+      'Record optical RPM, load cell thrust (grams), current (Amperes), and power (Watts).',
+      'Plot Thrust vs RPM and Current vs Throttle curves.',
+      'Determine the peak grams-per-watt efficiency operating point.'
+    ],
+    precautions: [
+      'All calculated values are mathematical engineering estimates based on aerodynamic equations, not physical strain-gauge tests.',
+      'Ensure current draw does not exceed continuous ESC current rating.'
+    ],
+    completed: false
+  },
+  {
+    id: 4,
+    title: 'UAV Control Testing and Trimming Procedure Using Transmitter and Servo',
+    shortTitle: 'Control & Trimming',
+    category: 'Avionics & Control',
+    description: 'Interact with virtual transmitter gimbals to deflect ailerons, elevator, and rudder surfaces in 3D, and execute trim correction for neutral aerodynamic trim.',
+    aim: 'To verify primary control surface deflections (Aileron, Elevator, Rudder) against transmitter stick inputs and calibrate digital sub-trims to achieve zero aerodynamic offset.',
+    softwareRequired: ['Virtual RC Transmitter Simulator', 'Interactive Servo & Linkage Kinematics Engine', 'Pulse Width (PWM) Oscilloscope HUD'],
+    componentsUsed: ['2.4GHz 6-Channel Transmitter (Mode 2)', 'Digital 9g Micro Servos (x4)', 'Control Horns and Pushrods', 'RC Receiver with PWM outputs', 'Receiver Battery Pack 5V'],
+    theory: 'RC servo motors respond to 50Hz PWM pulses between 1000µs and 2000µs, with 1500µs representing neutral center. Stick movements translate to angular servo horn deflection (+/- 45°), pushing control horns to pitch, roll, and yaw the aircraft.',
+    procedure: [
+      'Connect transmitter and move the right stick up/down to inspect elevator movement.',
+      'Move right stick left/right to inspect differential aileron deflections.',
+      'Move left stick left/right to inspect rudder yaw deflection.',
+      'Identify intentional stick center offsets (aerodynamic drift).',
+      'Apply digital trim clicks until the control surfaces return to neutral (1500µs).'
+    ],
+    precautions: [
+      'Verify correct servo direction (normal vs reversed) before flight.',
+      'Avoid mechanical binding at maximum stick travel endpoints.'
+    ],
+    completed: false
+  },
+  {
+    id: 5,
+    title: 'Lithium Polymer Battery Testing, Balancing and Maintenance',
+    shortTitle: 'LiPo Battery Lab',
+    category: 'Power Systems',
+    description: 'Monitor individual cell voltages (2S to 6S), simulate CC/CV balance charging, storage discharge, internal resistance (IR), and observe thermal safety margins.',
+    aim: 'To investigate Lithium-Polymer (LiPo) electrochemical characteristics, demonstrate individual cell voltage balancing, and study safe storage procedures.',
+    softwareRequired: ['LiPo Cell Electrochemical Simulator', 'Microprocessor Smart Charger Interface', 'Thermal Gradient Monitor'],
+    componentsUsed: ['2S (7.4V), 3S (11.1V), 4S (14.8V), 6S (22.2V) LiPo Battery Packs', 'JST-XH Balance Leads & XT60 Discharge Connector', 'Computerized Balance Charger (iMAX B6 style)', 'Digital Battery Cell Checker & IR Meter'],
+    theory: 'LiPo cells have a nominal voltage of 3.7V, maximum full charge of 4.20V, and critical minimum cutoff of 3.20V. In a multi-cell pack, variations in internal resistance cause cell voltage drift. Balance charging bleeds current from higher-voltage cells until all cells equalize within +/- 5mV.',
+    procedure: [
+      'Connect the balance plug and inspect individual cell voltages.',
+      'Identify any unbalanced cells (e.g. Cell 1 at 4.18V, Cell 2 at 3.92V).',
+      'Initiate Balance Charge Mode to observe bleeding resistors actively bringing cells to 4.20V.',
+      'Simulate high-rate discharge under motor load and observe voltage sag and temperature rise.',
+      'Run Storage Discharge mode to return cells to the safe 3.85V/cell baseline.'
+    ],
+    precautions: [
+      'Never discharge a LiPo cell below 3.0V to prevent irreversible copper shunting.',
+      'Simulated charging represents chemical kinetics; real LiPo batteries must be charged in fireproof bags.'
+    ],
+    completed: false
+  },
+  {
+    id: 6,
+    title: 'RC Transmitter Resetting, Calibration and Frequency Binding',
+    shortTitle: 'Transmitter & Binding',
+    category: 'Avionics & Control',
+    description: 'Perform factory reset, 4-axis stick gimbal endpoint calibration, sub-trim alignment, and execute the 2.4GHz FHSS frequency binding sequence with the receiver.',
+    aim: 'To perform complete transmitter memory reset, calibrate analog stick potentiometer endpoints, and execute the RF binding sequence with an airborne receiver.',
+    softwareRequired: ['Transmitter Firmware Configuration Utility', 'Analog Stick Calibration Wizard', '2.4GHz FHSS RF Link Simulator'],
+    componentsUsed: ['FlySky FS-i6X / FrSky Taranis 2.4GHz Transmitter', 'FS-iA6B / X8R Receiver', 'Receiver Bind Plug', '5V Regulated Power Source', 'PWM Status LEDs'],
+    theory: 'Radio control systems utilize 2.4GHz Frequency Hopping Spread Spectrum (FHSS) modulation. Binding locks the receiver uniquely to the transmitter’s Global Unique ID (GUID) to prevent co-channel interference. Calibration ensures stick potentiometers span full 1000µs to 2000µs range.',
+    procedure: [
+      'Navigate transmitter system menu to perform Model Factory Reset.',
+      'Enter Stick Calibration mode: move both gimbals through their circular limits.',
+      'Insert bind plug into the receiver B/VCC port and apply 5V power (LED flashes rapidly).',
+      'Hold the transmitter BIND button while powering on the radio.',
+      'Observe receiver LED transition from rapid flashing to solid blue/green, confirming binding.'
+    ],
+    precautions: [
+      'Remove propellers before performing any transmitter calibration or binding.',
+      'Frequency binding is an educational simulation of RF handshaking.'
+    ],
+    completed: false
+  },
+  {
+    id: 7,
+    title: 'Propeller Balancing Procedure',
+    shortTitle: 'Propeller Balancing',
+    category: 'Propulsion',
+    description: 'Detect static and dynamic unbalance on 2-blade and 3-blade props on a magnetic suspension stand, apply corrective mass, and verify vibration reduction via FFT spectrum.',
+    aim: 'To balance two-blade and three-blade UAV propellers statically and dynamically using a magnetic levitation balancer, mitigating airframe vibrations.',
+    softwareRequired: ['Magnetic Suspension Balancer Simulation', '3-Axis Accelerometer Vibration Analyzer', 'FFT Harmonics Spectrum Plotter'],
+    componentsUsed: ['Carbon Fiber and Nylon Propellers (8" to 15")', 'Magnetic Levitation Propeller Balancer', 'Precision Arbor and Cones', 'Aero Balance Tape / Sanding Grit (400)', '3-Axis Vibration Sensor'],
+    theory: 'Propeller unbalance occurs when the center of mass does not coincide with the axis of rotation (static unbalance) or principal inertia axis does not align with rotational axis (dynamic unbalance). Unbalanced props induce high-frequency vibrations that disrupt flight controller gyros and cause camera jello.',
+    procedure: [
+      'Place propeller onto the balanced arbor between magnetic suspension pivots.',
+      'Release the propeller horizontally and observe if one blade tilts downward due to gravity.',
+      'Identify the heavier blade and apply balancing tape to the lighter blade hub or tip.',
+      'Repeat until the propeller remains perfectly horizontal at any angular orientation.',
+      'Run the high-speed spin test and compare the vibration waveform (mm/s) before vs after balancing.'
+    ],
+    precautions: [
+      'Never sand the trailing knife edge of carbon propellers as it alters aerodynamic airfoil camber.',
+      'Ensure the balancing arbor itself is perfectly true.'
+    ],
+    completed: false
+  },
+  {
+    id: 8,
+    title: 'Fixed Wing UAV Centre of Gravity Calculation and Balancing',
+    shortTitle: 'Center of Gravity',
+    category: 'Design & Weight',
+    description: 'Calculate Longitudinal CG using reference datum moments, compute Mean Aerodynamic Chord (MAC), slide battery position, and observe static stability margins.',
+    aim: 'To calculate the longitudinal center of gravity (CG) of a fixed-wing UAV, correlate it with the Mean Aerodynamic Chord (MAC), and balance the aircraft for stable flight.',
+    softwareRequired: ['3D Longitudinal Aircraft Moment Balance Simulator', 'Mean Aerodynamic Chord Geometry Engine', 'Static Stability Margin Plotter'],
+    componentsUsed: ['Fixed-wing Airframe (Wingspan 1200mm, Chord 220mm)', 'Movable 4S 3000mAh Battery Pack', 'Brushless Motor & Firewall Assembly', 'Avionics Stack & Linkage Hardware', 'Leading Edge CG Reference Gauge'],
+    theory: 'Static pitch stability requires the Center of Gravity to be located ahead of the Aerodynamic Neutral Point (NP). The distance between CG and NP, expressed as a fraction of MAC, is the Static Margin (typically 5% to 15% for stable UAV flight): CG_loc = Sum(Wi * Xi) / Sum(Wi).',
+    procedure: [
+      'Define aircraft reference datum at the tip of the fuselage nose (X = 0 mm).',
+      'Input the mass and moment arm distance for each component (motor, avionics, servos, tail).',
+      'Compute root chord, tip chord, and calculate the Mean Aerodynamic Chord (MAC).',
+      'Slide the battery forward or aft to shift the calculated CG inside the 25% - 30% MAC stability window.',
+      'Simulate aerodynamic pitch response in stable vs tail-heavy dive/stall states.'
+    ],
+    precautions: [
+      'A tail-heavy aircraft (CG aft of neutral point) is dynamically unstable and uncontrollable.',
+      'Always balance with all flight hardware, antennas, and payloads installed.'
+    ],
+    completed: false
+  },
+  {
+    id: 9,
+    title: 'Drone Base and Avionic Components Assembling in Quadcopter Configuration',
+    shortTitle: 'Quadcopter Assembly',
+    category: 'Assembly',
+    description: 'Assemble a complete Quad-X drone in 3D: carbon arms, 4 brushless motors with CW/CCW indicators, ESCs, flight controller, GPS mast, and inspect wiring traces.',
+    aim: 'To execute the full mechanical assembly, electrical wiring, and component orientation verification for a standard Quadcopter-X multirotor.',
+    softwareRequired: ['3D Quadcopter Assembly Studio', 'Electrical Signal & Power Distribution Visualizer', 'Pre-flight Airworthiness Inspection Checklist'],
+    componentsUsed: ['Carbon Fiber X-Frame (F450)', '4x BLDC Motors (2x CW black nuts, 2x CCW silver nuts)', '4x 30A SimonK/BLHeli ESCs', 'Power Distribution Board (PDB) with XT60', 'Flight Controller (32-bit Cortex)', 'Ublox NEO-M8N GPS with Compass Mast', '3S 4200mAh LiPo Battery', '1045 Carbon Propellers'],
+    theory: 'In a Quadcopter-X configuration, Motor 1 (Rear Right) and Motor 4 (Front Left) spin counter-clockwise (CCW), while Motor 2 (Front Right) and Motor 3 (Rear Left) spin clockwise (CW). This cancels net reactive gyroscopic torque, allowing yaw control by varying relative pair RPMs.',
+    procedure: [
+      'Mount 4 arms onto the lower center plate and secure with steel/titanium M3 screws.',
+      'Mount motors with proper CW/CCW threaded prop shafts at corresponding arm indices.',
+      'Route ESC power leads to PDB terminals and signal leads to flight controller channels 1-4.',
+      'Mount the flight controller at geometric center with arrow pointing towards the nose.',
+      'Attach GPS mast elevated above battery to minimize magnetic compass interference.',
+      'Inspect 3D exploded view, verify motor spin directions, and generate assembly clearance report.'
+    ],
+    precautions: [
+      'Verify flight controller forward orientation arrow is aligned with vehicle frame axis.',
+      'Ensure motor mounting screws do not penetrate into motor stator copper windings.'
+    ],
+    completed: false
+  },
+  {
+    id: 10,
+    title: 'Drone Flight Controller Programming and Calibration (KK 2.1.5)',
+    shortTitle: 'KK 2.1.5 FC Setup',
+    category: 'Avionics & Control',
+    description: 'Simulate the retro KK 2.1.5 flight controller: navigate 128x64 LCD menus, perform accelerometer calibration, PI loop gain tuning, ESC throttle range cal, and motor layout checks.',
+    aim: 'To configure, calibrate, and tune a KK 2.1.5 multi-rotor control board using its on-board graphic LCD display, menu navigation buttons, and sensor diagnostics.',
+    softwareRequired: ['Virtual KK 2.1.5 Graphic LCD & Firmware Emulator', 'Inertial Measurement Unit (IMU) Calibrator', 'PID Closed-Loop Gain Tuner'],
+    componentsUsed: ['KK 2.1.5 Flight Control Board (Atmega644PA & InvenSense 6050 MPU)', '4-Button Tactile Keypad (BACK, DOWN, UP, ENTER)', '128x64 Monochrome Graphic LCD Screen', 'Piezo Electric Buzzer', '4x Servo ESC Signal Wires', '5-Channel Receiver Cable Loom'],
+    theory: 'The KK 2.1.5 uses a 6-axis MPU6050 gyro/accelerometer to compute aircraft roll, pitch, and yaw error rates. Proportional-Integral (PI) control loops modulate ESC PWM signals 400 times per second to maintain self-level stability: Output = Kp * e(t) + Ki * Integral(e(t) dt).',
+    procedure: [
+      'Power on the simulated KK 2.1.5 board and view the status screen.',
+      'Navigate using UP/DOWN/ENTER buttons into "ACC Calibration" and execute flat leveling.',
+      'Select "Receiver Test" to verify transmitter stick centers read 0 and endpoints reach +/- 100.',
+      'Open "PI Editor" to adjust Roll/Pitch P-gain (default 50) and I-gain (default 25).',
+      'Select "Motor Layout" -> "Quadcopter X" to confirm motor numbers and CW/CCW directions.',
+      'Execute the ESC throttle range calibration routine and view final configuration summary.'
+    ],
+    precautions: [
+      'The board must be kept completely stationary on a level surface during gyro/accel calibration.',
+      'This simulation emulates KK 2.1.5 firmware behavior for academic instruction.'
+    ],
+    completed: false
+  }
+];

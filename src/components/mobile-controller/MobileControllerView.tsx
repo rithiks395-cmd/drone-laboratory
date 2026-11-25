@@ -3,7 +3,7 @@ import {
   MobileControllerConnection, 
   ControllerPacket, 
   TelemetryPacket,
-  DEFAULT_ROOM_CODE 
+  generatePairingCode
 } from '../../utils/remoteControllerLink';
 import { VirtualJoystick } from '../common/VirtualJoystick';
 import { 
@@ -21,7 +21,9 @@ import {
   Wifi,
   ExternalLink,
   ShieldCheck,
-  Zap
+  Zap,
+  Edit2,
+  Check
 } from 'lucide-react';
 
 interface MobileControllerViewProps {
@@ -30,11 +32,17 @@ interface MobileControllerViewProps {
 }
 
 export const MobileControllerView: React.FC<MobileControllerViewProps> = ({
-  roomCode = DEFAULT_ROOM_CODE,
+  roomCode: initialRoomCode,
   onExit,
 }) => {
-  const [isConnected, setIsConnected] = useState(true);
+  const [roomCode, setRoomCode] = useState(() => initialRoomCode || '1001');
+  const [editingPin, setEditingPin] = useState(false);
+  const [tempPin, setTempPin] = useState(roomCode);
+
+  const [isConnected, setIsConnected] = useState(false);
+  const [statusText, setStatusText] = useState('Pairing with Laptop screen...');
   const [packetCount, setPacketCount] = useState(0);
+
   const [telemetry, setTelemetry] = useState<TelemetryPacket>({
     altitude: 0,
     speed: 0,
@@ -66,9 +74,10 @@ export const MobileControllerView: React.FC<MobileControllerViewProps> = ({
     const conn = new MobileControllerConnection(roomCode);
     connectionRef.current = conn;
 
-    conn.onStatusChange = (status) => {
+    conn.onStatusChange = (status, text) => {
       setIsConnected(status);
-      if (status) vibrate(50);
+      if (text) setStatusText(text);
+      if (status) vibrate(60);
     };
 
     conn.onTelemetryReceived = (data) => {
@@ -90,18 +99,13 @@ export const MobileControllerView: React.FC<MobileControllerViewProps> = ({
     const interval = setInterval(() => {
       if (!connectionRef.current) return;
 
-      // Throttle mapped from stick position:
-      // y = -1.0 -> 0.0 thrust
-      // y = -0.6 -> 1.8 thrust (idle ground)
-      // y = 0.15 -> 5.2 thrust (stable hover)
-      // y = +1.0 -> 9.2 thrust (rapid climb)
       const throttleVal = Math.max(0, Math.min(10, (leftStick.y + 1) * 4.6));
 
       const packet: ControllerPacket = {
         throttle: throttleVal,
         yaw: leftStick.x,
-        pitch: -rightStick.y, // Push stick forward -> pitch down (forward flight)
-        roll: rightStick.x,   // Push stick right -> bank right
+        pitch: -rightStick.y, // Forward stick -> pitch down (forward flight)
+        roll: rightStick.x,   // Right stick -> bank right
         timestamp: Date.now(),
       };
 
@@ -155,6 +159,13 @@ export const MobileControllerView: React.FC<MobileControllerViewProps> = ({
     }));
   };
 
+  const handleSavePin = () => {
+    if (tempPin.trim()) {
+      setRoomCode(tempPin.trim());
+      setEditingPin(false);
+    }
+  };
+
   const calculatedThrust = Math.round(Math.max(0, Math.min(10, (leftStick.y + 1) * 4.6)) * 10) / 10;
 
   return (
@@ -175,15 +186,36 @@ export const MobileControllerView: React.FC<MobileControllerViewProps> = ({
           <div>
             <div className="text-xs font-bold font-mono flex items-center gap-1.5">
               <span className={isConnected ? 'text-emerald-300' : 'text-amber-300'}>
-                {isConnected ? 'ONLINE • READY TO FLY' : 'LINKING TO PC...'}
+                {statusText}
               </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-                PIN: {roomCode}
-              </span>
+
+              {editingPin ? (
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={tempPin}
+                    onChange={(e) => setTempPin(e.target.value)}
+                    className="w-16 bg-slate-900 border border-cyan-400 px-1 py-0.5 rounded text-[11px] font-mono text-cyan-300 text-center"
+                    autoFocus
+                  />
+                  <button onClick={handleSavePin} className="p-0.5 rounded bg-cyan-600 text-white">
+                    <Check className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => { setTempPin(roomCode); setEditingPin(true); }}
+                  className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 font-mono flex items-center gap-1"
+                  title="Click to edit pairing PIN"
+                >
+                  <span>PIN: {roomCode}</span>
+                  <Edit2 className="w-2.5 h-2.5 text-cyan-400" />
+                </button>
+              )}
             </div>
             <div className="text-[10px] text-slate-400 font-mono flex items-center gap-1">
               <Zap className="w-3 h-3 text-cyan-400" />
-              <span>Streaming inputs to laptop screen ({packetCount})</span>
+              <span>{isConnected ? `Data link active (${packetCount})` : 'Ensure pairing PIN matches laptop'}</span>
             </div>
           </div>
         </div>
@@ -339,8 +371,8 @@ export const MobileControllerView: React.FC<MobileControllerViewProps> = ({
       {/* Bottom Status Ribbon */}
       <footer className="text-center text-[10px] font-mono text-slate-500 pt-1 border-t border-slate-800/80 flex items-center justify-between px-3">
         <span className="flex items-center gap-1 text-cyan-400">
-          <ShieldCheck className="w-3 h-3 text-emerald-400" />
-          <span>Local Wi-Fi Relay Active</span>
+          <ShieldCheck className={`w-3 h-3 ${isConnected ? 'text-emerald-400' : 'text-amber-400'}`} />
+          <span>{isConnected ? 'P2P DataLink Connected' : 'Checking Connection...'}</span>
         </span>
         <span className="text-slate-400">Hold phone horizontally</span>
       </footer>

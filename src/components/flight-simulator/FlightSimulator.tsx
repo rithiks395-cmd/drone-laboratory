@@ -139,7 +139,7 @@ export const FlightSimulator: React.FC = () => {
   const [showTouchJoysticks, setShowTouchJoysticks] = useState(true);
 
   // Phone remote controller pairing state
-  const [roomCode] = useState(() => generatePairingCode());
+  const [roomCode, setRoomCode] = useState(() => generatePairingCode());
   const [isPhoneConnected, setIsPhoneConnected] = useState(false);
   const [isPairingModalOpen, setIsPairingModalOpen] = useState(false);
   const hostConnRef = useRef<DroneHostConnection | null>(null);
@@ -154,6 +154,10 @@ export const FlightSimulator: React.FC = () => {
 
     host.onStatusChange = (status) => {
       setIsPhoneConnected(status);
+    };
+
+    host.onRoomCodeUpdated = (newCode) => {
+      setRoomCode(newCode);
     };
 
     host.onPacketReceived = (packet: ControllerPacket) => {

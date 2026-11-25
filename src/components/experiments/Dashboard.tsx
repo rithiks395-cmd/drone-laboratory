@@ -13,7 +13,9 @@ import {
   Layers, 
   Cpu, 
   Gauge, 
-  Activity 
+  Activity,
+  Copyright,
+  HardDrive
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -179,6 +181,37 @@ export const Dashboard: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+
+        {/* Professional Copyright & Offline Laboratory Certification Banner */}
+        <div className="mt-6 p-5 rounded-2xl bg-gradient-to-r from-[#070c18] via-[#091122] to-[#070c18] border border-cyan-500/25 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-mono">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
+              <Copyright className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-white font-bold flex items-center gap-2">
+                <span>© 2026 UAV VIRTUAL LAB</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  ALL RIGHTS RESERVED
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 mt-0.5">
+                Department of Aeronautical & Aerospace Engineering • Autonomous Systems Laboratory Simulator
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 text-[11px] text-slate-400">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800">
+              <HardDrive className="w-3.5 h-3.5 text-emerald-400" />
+              <span>100% OFFLINE CAPABLE</span>
+            </div>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800">
+              <ShieldCheck className="w-3.5 h-3.5 text-cyan-400" />
+              <span>SYLLABUS CERTIFIED</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

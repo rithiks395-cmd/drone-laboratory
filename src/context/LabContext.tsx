@@ -39,6 +39,10 @@ interface LabContextType {
   // Phone Joystick Remote Pairing Modal
   isPhoneModalOpen: boolean;
   setIsPhoneModalOpen: (open: boolean) => void;
+
+  // Offline Practical Exam Mode (No Procedures, Hidden Titles for Exam Assessment)
+  isOfflineExamMode: boolean;
+  toggleOfflineExamMode: (forcedVal?: boolean) => void;
 }
 
 const LabContext = createContext<LabContextType | undefined>(undefined);
@@ -120,6 +124,38 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<'high' | 'low'>('high');
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState<boolean>(false);
+
+  // Offline Practical Exam Mode (Strictly No Procedures, Hidden Titles for Practical Assessment)
+  const [isBrowserOffline, setIsBrowserOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
+  const [examModeOverride, setExamModeOverride] = useState<boolean | null>(() => {
+    const saved = localStorage.getItem('uav_exam_mode_override');
+    return saved !== null ? saved === 'true' : null;
+  });
+
+  useEffect(() => {
+    const handleOnline = () => setIsBrowserOffline(false);
+    const handleOffline = () => setIsBrowserOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const isLocalHost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+  // When hosted on Netlify/Vercel with internet, it defaults to Online Guided Study.
+  // When running offline (!navigator.onLine) or offline launcher, it automatically locks into Offline Exam Mode (No Procedure).
+  const isOfflineExamMode = examModeOverride !== null
+    ? examModeOverride
+    : (isBrowserOffline || isLocalHost);
+
+  const toggleOfflineExamMode = (forcedVal?: boolean) => {
+    const nextVal = forcedVal !== undefined ? forcedVal : !isOfflineExamMode;
+    setExamModeOverride(nextVal);
+    localStorage.setItem('uav_exam_mode_override', String(nextVal));
+  };
 
   useEffect(() => {
     localStorage.setItem(currentExpKey, JSON.stringify(experiments));
@@ -261,6 +297,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         toggleGraphicsQuality,
         isPhoneModalOpen,
         setIsPhoneModalOpen,
+        isOfflineExamMode,
+        toggleOfflineExamMode,
       }}
     >
       {children}

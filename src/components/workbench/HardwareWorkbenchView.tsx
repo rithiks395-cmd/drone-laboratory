@@ -156,7 +156,15 @@ const ComponentVisualBadge: React.FC<{ visualType: string; isInstalled: boolean 
 };
 
 export const HardwareWorkbenchView: React.FC = () => {
-  const { setSelectedReportExpId, setIsRecordModalOpen, captureScreenshot, atmosphereTheme, setActiveView } = useLab();
+  const { 
+    setSelectedReportExpId, 
+    setIsRecordModalOpen, 
+    captureScreenshot, 
+    atmosphereTheme, 
+    setActiveView,
+    isOfflineExamMode,
+    toggleOfflineExamMode 
+  } = useLab();
   const { currentUser } = useAuth();
   const workbenchRef = useRef<HTMLDivElement>(null);
   const orbitControlsRef = useRef<any>(null);
@@ -186,8 +194,14 @@ export const HardwareWorkbenchView: React.FC = () => {
   const [tempFolderName, setTempFolderName] = useState<string>('Semester Practical Labs');
   const [tempSelectedExp, setTempSelectedExp] = useState<number>(1);
 
-  // Floating Right-Side Dock State: Tab can be 'components' or 'procedure'
+  // Floating Right-Side Dock State: Tab can be 'components' or 'procedure' (Strictly 'components' when in offline exam mode)
   const [rightPanelTab, setRightPanelTab] = useState<'components' | 'procedure'>('components');
+
+  useEffect(() => {
+    if (isOfflineExamMode && rightPanelTab === 'procedure') {
+      setRightPanelTab('components');
+    }
+  }, [isOfflineExamMode, rightPanelTab]);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
 
   // Lighting Mode: Night and Day time working space
@@ -1227,22 +1241,33 @@ export const HardwareWorkbenchView: React.FC = () => {
         title: 'COMPONENT ASSEMBLED',
         message: isNowFullyDone
           ? `✓ SUCCESS: "${component.name}" mounted! Assembly is 100% complete and ready to execute.`
-          : `✓ SUCCESS: "${component.name}" placed in position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
+          : isOfflineExamMode
+            ? `✓ SUCCESS: "${component.name}" correctly placed in position! Continue assembling.`
+            : `✓ SUCCESS: "${component.name}" placed in position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
         componentName: component.name,
       });
 
-      if (isNowFullyDone) {
+      if (isNowFullyDone && !isOfflineExamMode) {
         setRightPanelTab('procedure');
       }
     } else {
       // ERROR: Wrong component
-      const expectedPart = nextExpectedStep?.targetComponentName || 'the next procedure component';
-      setValidationAlert({
-        type: 'error',
-        title: 'WRONG COMPONENT SELECTED',
-        message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You chose "${component.name}". Follow procedure on the right!`,
-        componentName: component.name,
-      });
+      if (isOfflineExamMode) {
+        setValidationAlert({
+          type: 'error',
+          title: 'WRONG COMPONENT SELECTED',
+          message: `⚠ INCORRECT: "${component.name}" is not the correct component for this stage. Re-evaluate using your practical aeronautical knowledge!`,
+          componentName: component.name,
+        });
+      } else {
+        const expectedPart = nextExpectedStep?.targetComponentName || 'the next procedure component';
+        setValidationAlert({
+          type: 'error',
+          title: 'WRONG COMPONENT SELECTED',
+          message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You chose "${component.name}". Follow procedure on the right!`,
+          componentName: component.name,
+        });
+      }
     }
 
     setTimeout(() => {
@@ -1680,9 +1705,9 @@ export const HardwareWorkbenchView: React.FC = () => {
                 />
               </div>
 
-              {/* SELECT EXPERIMENT */}
+              {/* SELECT EXPERIMENT OR EXAM TASK */}
               <label className="block text-xs font-bold text-slate-200 mb-2">
-                SELECT EXPERIMENT NO (1 TO 10):
+                {isOfflineExamMode ? 'SELECT PRACTICAL EXAM TASK (STATIONS 1 TO 10):' : 'SELECT EXPERIMENT NO (1 TO 10):'}
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-h-44 overflow-y-auto p-1 custom-scrollbar mb-5">
@@ -1701,11 +1726,11 @@ export const HardwareWorkbenchView: React.FC = () => {
                     >
                       <div className="flex items-center justify-between mb-0.5">
                         <span className={`text-[11px] font-bold ${isSelected ? 'text-amber-300' : 'text-cyan-400'}`}>
-                          EX {num}
+                          {isOfflineExamMode ? `TASK ${num}` : `EX ${num}`}
                         </span>
                       </div>
                       <div className="text-[9px] line-clamp-1 text-slate-400">
-                        {guide?.title}
+                        {isOfflineExamMode ? 'Practical Exam Assessment (No Procedure)' : guide?.title}
                       </div>
                     </button>
                   );
@@ -1844,8 +1869,35 @@ export const HardwareWorkbenchView: React.FC = () => {
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
             <span className="text-cyan-400 font-bold truncate max-w-[100px] sm:max-w-[130px]">{folderName} /</span>
             <span className="text-amber-300 font-bold truncate max-w-[110px] sm:max-w-[150px]">{projectName}</span>
-            <span className="text-cyan-300 font-bold">| EX {selectedExpNo}</span>
+            <span className="text-cyan-300 font-bold">
+              {isOfflineExamMode ? `| PRACTICAL EXAM TASK ${selectedExpNo}` : `| EX ${selectedExpNo}`}
+            </span>
           </div>
+
+          {/* OFFLINE EXAM MODE BADGE / TOGGLE */}
+          <button
+            onClick={() => toggleOfflineExamMode()}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold font-mono transition-all cursor-pointer ${
+              isOfflineExamMode
+                ? 'bg-rose-950/80 border-rose-500/60 text-rose-300 shadow-[0_0_15px_rgba(244,63,94,0.3)]'
+                : 'bg-emerald-950/80 border-emerald-500/60 text-emerald-300 shadow-[0_0_15px_rgba(16,185,129,0.3)]'
+            }`}
+            title="Click to toggle between Offline Practical Exam Mode (No Procedures) and Online Guided Study Mode"
+          >
+            {isOfflineExamMode ? (
+              <>
+                <ShieldCheck className="w-3.5 h-3.5 text-rose-400" />
+                <span className="hidden sm:inline">OFFLINE EXAM</span>
+                <span className="text-[10px] bg-rose-900/60 px-1 rounded text-rose-200">NO PROCEDURE</span>
+              </>
+            ) : (
+              <>
+                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">ONLINE STUDY</span>
+                <span className="text-[10px] bg-emerald-900/60 px-1 rounded text-emerald-200">GUIDED</span>
+              </>
+            )}
+          </button>
         </div>
 
         {/* Center 1: 3D Camera Angle Presets */}
@@ -2219,10 +2271,16 @@ export const HardwareWorkbenchView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-[#091024]/90 border border-cyan-500/40 max-w-sm shadow-xl backdrop-blur-md">
               <Crosshair className="w-8 h-8 text-cyan-400 mx-auto mb-2 animate-pulse" />
               <h3 className="text-xs font-bold font-mono text-white mb-1">
-                PUZZLE BLUEPRINT READY
+                {isOfflineExamMode ? 'PRACTICAL EXAM BLUEPRINT' : 'PUZZLE BLUEPRINT READY'}
               </h3>
               <p className="text-[11px] text-slate-300 font-mono leading-relaxed">
-                Step 1: Drag <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the components tray and drop it onto the glowing outline!
+                {isOfflineExamMode ? (
+                  'Practical Assessment: Select and drag the required initial aeronautical component from the tray onto the workspace blueprint.'
+                ) : (
+                  <>
+                    Step 1: Drag <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the components tray and drop it onto the glowing outline!
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -2257,17 +2315,20 @@ export const HardwareWorkbenchView: React.FC = () => {
                   <span>3D COMPONENTS</span>
                 </button>
 
-                <button
-                  onClick={() => setRightPanelTab('procedure')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    rightPanelTab === 'procedure'
-                      ? 'bg-amber-400 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>PROCEDURE</span>
-                </button>
+                {/* PROCEDURE TAB: STRICTLY HIDDEN IN OFFLINE EXAM MODE */}
+                {!isOfflineExamMode && (
+                  <button
+                    onClick={() => setRightPanelTab('procedure')}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                      rightPanelTab === 'procedure'
+                        ? 'bg-amber-400 text-slate-950 shadow-sm'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>PROCEDURE</span>
+                  </button>
+                )}
               </div>
 
               <button
@@ -2360,15 +2421,41 @@ export const HardwareWorkbenchView: React.FC = () => {
                   ))}
                 </div>
 
-                <div className="p-2 border-t border-slate-800 bg-[#040814] flex items-center justify-between text-[11px] shrink-0">
-                  <span className="text-slate-400">TOTAL HARDWARE LOAD:</span>
-                  <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
+                <div className="p-2.5 border-t border-slate-800 bg-[#040814] flex flex-col gap-2 shrink-0">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">TOTAL HARDWARE LOAD:</span>
+                    <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
+                  </div>
+
+                  {/* IN OFFLINE EXAM MODE: SHOW DIRECT EXECUTE BUTTON WHEN ASSEMBLY IS COMPLETED */}
+                  {isOfflineExamMode && (
+                    <div className="pt-1 border-t border-slate-800/80">
+                      <div className="flex items-center justify-between text-[10px] mb-1.5 font-mono">
+                        <span className="text-slate-400">PRACTICAL STATUS:</span>
+                        <span className={isExpFullyAssembled ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {isExpFullyAssembled ? '✓ FULLY ASSEMBLED' : `${currentCompletedSteps.length}/${activeExpSteps.length} PARTS MOUNTED`}
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleRunAndExecute}
+                        disabled={!isExpFullyAssembled}
+                        className={`w-full py-2.5 rounded-xl font-black text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                          isExpFullyAssembled
+                            ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.5)] active:scale-95'
+                            : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                        }`}
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>{isExpFullyAssembled ? 'RUN & EXECUTE EXPERIMENT' : 'ASSEMBLE ALL PARTS TO RUN'}</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* TAB CONTENT B: PROCEDURE & CIRCUIT CONNECTION DIAGRAMS (NO "PLACE PART" BUTTON AS REQUESTED) */}
-            {rightPanelTab === 'procedure' && (
+            {/* TAB CONTENT B: PROCEDURE & CIRCUIT CONNECTION DIAGRAMS (STRICTLY DISABLED IN OFFLINE EXAM MODE) */}
+            {rightPanelTab === 'procedure' && !isOfflineExamMode && (
               <div className="flex-1 flex flex-col overflow-y-auto p-3 space-y-3 custom-scrollbar">
                 
                 {/* Experiment Aim & Step Progress */}
@@ -2593,7 +2680,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/50 text-cyan-300 text-[10px] font-bold">
-                      EX {selectedExpNo} EXECUTION TELEMETRY
+                      {isOfflineExamMode ? 'PRACTICAL EXAM TELEMETRY' : `EX ${selectedExpNo} EXECUTION TELEMETRY`}
                     </span>
                     <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -2601,7 +2688,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                     </span>
                   </div>
                   <h3 className="text-sm sm:text-base font-bold text-white mt-0.5">
-                    {activeGuide.title}
+                    {isOfflineExamMode ? `Hardware Execution & Output Readings (Station ${selectedExpNo})` : activeGuide.title}
                   </h3>
                 </div>
               </div>

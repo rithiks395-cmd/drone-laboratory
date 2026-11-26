@@ -23,7 +23,15 @@ import {
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { activeView, setActiveView, experiments, mobileMenuOpen, setMobileMenuOpen, openInspection } = useLab();
+  const { 
+    activeView, 
+    setActiveView, 
+    experiments, 
+    mobileMenuOpen, 
+    setMobileMenuOpen, 
+    openInspection,
+    isOfflineExamMode 
+  } = useLab();
 
   const getExperimentIcon = (id: number) => {
     switch (id) {
@@ -140,7 +148,7 @@ export const Sidebar: React.FC = () => {
 
         {/* Experiments List Header */}
         <div className="px-4 py-2 flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-cyan-400/80 bg-slate-900/40 border-b border-slate-800">
-          <span>SYLLABUS EXPERIMENTS (10)</span>
+          <span>{isOfflineExamMode ? 'PRACTICAL EXAM TASKS' : 'SYLLABUS EXPERIMENTS (10)'}</span>
           <span className="text-slate-400">{experiments.filter((e) => e.completed).length}/10</span>
         </div>
 
@@ -171,7 +179,7 @@ export const Sidebar: React.FC = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
                     <span className="text-[10px] font-mono text-cyan-400 font-semibold tracking-wider">
-                      EXP 0{exp.id}
+                      {isOfflineExamMode ? `TASK ${exp.id < 10 ? '0' + exp.id : exp.id}` : `EXP 0${exp.id}`}
                     </span>
                     {exp.completed ? (
                       <span className="flex items-center gap-0.5 text-[9px] font-mono text-emerald-400 font-medium">
@@ -184,10 +192,10 @@ export const Sidebar: React.FC = () => {
                     )}
                   </div>
                   <div className="text-xs font-medium leading-snug truncate mt-0.5 text-slate-200">
-                    {exp.shortTitle}
+                    {isOfflineExamMode ? 'Practical Hardware Assessment' : exp.shortTitle}
                   </div>
                   <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                    {exp.category}
+                    {isOfflineExamMode ? 'Assemble from Knowledge' : exp.category}
                   </div>
                 </div>
               </button>

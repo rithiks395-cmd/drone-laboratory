@@ -102,7 +102,7 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/15 text-cyan-300 text-xs sm:text-sm font-mono font-bold border border-cyan-400/50 mb-5 shadow-[0_0_25px_rgba(6,182,212,0.4)] backdrop-blur-md">
           <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
           <Compass className="w-4 h-4 text-cyan-300 animate-spin" style={{ animationDuration: '8s' }} />
-          <span className="tracking-widest uppercase">AEROSPACE ENGINEERING VIRTUAL PLATFORM</span>
+          <span className="tracking-widest uppercase font-bold text-amber-300">DEPARTMENT : INFORMATION TECHNOLOGY</span>
         </div>
 
         {/* BRIGHT GLOWING TITLE WITH EXCELLENT ANIMATION */}
@@ -111,10 +111,10 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({
             WELCOME TO
           </span>
           <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_50px_rgba(6,182,212,1)] animate-pulse inline-block">
-            AERO - SPACE LABORATORY
+            AUTONOMOUS SYSTEM DESIGN USING DRONE
           </span>
-          <span className="block mt-2 text-2xl sm:text-3xl md:text-4xl font-mono text-amber-400 font-black tracking-wider drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]">
-            ( SIMULATOR )
+          <span className="block mt-2 text-xl sm:text-2xl md:text-3xl font-mono text-amber-400 font-black tracking-wider drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]">
+            DEPARTMENT : INFORMATION TECHNOLOGY
           </span>
         </h1>
 
@@ -211,17 +211,6 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({
             <ShieldCheck className="w-4 h-4 text-amber-400" />
             <span>ADMIN PORTAL</span>
           </button>
-
-          {/* WHOLE PROJECT WORD DOCUMENTATION DOWNLOAD BUTTON */}
-          <a
-            href="/Aero_Space_Simulator_Project_Documentation.docx"
-            download="Aero_Space_Simulator_Project_Documentation.docx"
-            className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-600/30 hover:bg-emerald-500/40 text-emerald-300 border-2 border-emerald-400/60 hover:border-emerald-300 font-bold font-mono text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer active:scale-95 w-full sm:w-auto"
-            title="Download Whole Project Documentation in Microsoft Word (.docx) Format"
-          >
-            <FileDown className="w-4 h-4 text-emerald-400" />
-            <span>WORD DOC (.DOCX)</span>
-          </a>
         </div>
 
         {/* Bottom Helper Note for New Users */}

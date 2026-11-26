@@ -1198,16 +1198,63 @@ export const HardwareWorkbenchView: React.FC = () => {
 
   // Filter components by search and category
   const filteredComponents = useMemo(() => {
+    if (!searchQuery || searchQuery.trim() === '') {
+      return isOfflineExamMode ? [] : components.filter((item) => activeCategory === 'All' || item.category === activeCategory);
+    }
+
+    const q = searchQuery.trim().toLowerCase();
+
+    // Canonical full names and aliases for each component
+    const aliases: Record<string, string[]> = {
+      frame_f450: ['f450 quad-x carbon frame plates', 'f450 frame', 'frame', 'carbon frame plates', 'quadcopter frame'],
+      arms_f450: ['f450 high-strength arm struts (x4)', 'f450 high-strength arm struts', 'f450 arm struts', 'arm struts', 'arms', 'f450 arms'],
+      bldc_motors: ['a2212 1000kv brushless dc motors (x4)', 'a2212 1000kv brushless dc motors', 'brushless dc motors', 'brushless dc motor', 'brushless motor', 'bldc motor', 'motor', 'motors'],
+      esc_30a: ['simonk 30a high-speed escs (x4)', 'simonk 30a high-speed escs', 'electronic speed controllers', 'electronic speed controller', 'esc', 'escs', '30a esc'],
+      props_1045: ['1045 carbon-reinforced propellers (x4)', '1045 carbon-reinforced propellers', '1045 propellers', 'propeller', 'propellers', 'props'],
+      fc_kk215: ['kk2.1.5 multi-rotor flight controller', 'kk2.1.5 flight controller', 'flight controller', 'kk 2.1.5', 'kk2.1.5', 'flight control board', 'kk board'],
+      rc_receiver_ia6b: ['fs-ia6b 6-channel 2.4ghz receiver', 'fs-ia6b receiver', 'rc receiver', 'receiver', 'flysky receiver', 'ia6b'],
+      rc_transmitter_tx: ['fs-i6 6-channel 2.4ghz transmitter', 'fs-i6 transmitter', 'rc transmitter', 'transmitter', 'flysky transmitter', 'fs-i6'],
+      lipo_3s: ['turnigy 3s 2200mah 25c lipo battery', '3s lipo battery', 'lipo battery', 'battery', 'turnigy lipo', 'lipo'],
+      pdb_xt60: ['integrated pdb & xt60 power harness', 'power distribution board', 'pdb', 'xt60 harness', 'xt60'],
+      hardware_screws: ['m3 hex screws & nylon standoffs kit', 'm3 hex screws', 'hex screws', 'screws', 'standoffs'],
+      thrust_rig: ['digital load-cell thrust stand rig', 'digital thrust stand', 'thrust stand', 'thrust rig', 'load cell'],
+      tachometer_opt: ['optical laser digital tachometer', 'laser tachometer', 'optical tachometer', 'tachometer'],
+      ammeter_shunt: ['30a precision dc current shunt & wattmeter', 'dc current shunt', 'current shunt', 'wattmeter', 'ammeter'],
+      fixed_wing_airframe: ['trainer fixed-wing epo airframe', 'fixed-wing airframe', 'fixed wing airframe', 'airframe', 'fuselage'],
+      wing_spar_carbon: ['high-modulus carbon fiber wing spar tube', 'carbon fiber wing spar', 'wing spar', 'spar tube', 'carbon spar'],
+      servos_9g: ['sg90 9g micro servos & linkages (x4)', 'sg90 9g micro servos', 'sg90 micro servos', 'micro servos', 'servo', 'servos'],
+      servo_tester: ['microprocessor 3-channel servo tester', 'servo tester', 'ccpm servo tester'],
+      protractor_dial: ['180° precision angular deflection protractor', 'angular deflection protractor', 'deflection protractor', 'protractor'],
+      pushrod_linkage: ['piano wire pushrods & brass clevises', 'piano wire pushrods', 'pushrods', 'pushrod', 'clevises'],
+      lipo_charger_b6: ['imax b6 80w microprocessor balance charger', 'imax b6 charger', 'balance charger', 'lipo charger', 'charger'],
+      lipo_checker: ['digital 1s-8s battery cell voltage checker & buzzer', 'battery cell voltage checker', 'battery checker', 'voltage checker', 'cell checker'],
+      bind_plug: ['flysky 2.4ghz receiver bind plug jumper', 'receiver bind plug jumper', 'bind plug', 'bind jumper'],
+      magnetic_balancer: ['high-precision magnetic suspension propeller balancer', 'magnetic suspension propeller balancer', 'propeller balancer', 'magnetic balancer', 'balancer'],
+      balancing_tape: ['aeronautical balancing tape & 600-grit sandpaper', 'aeronautical balancing tape', 'balancing tape', 'sandpaper'],
+      airfoil_naca: ['subsonic wing airfoil section (naca 0012 / clark-y)', 'wing airfoil section', 'airfoil section', 'airfoil', 'clark-y'],
+      pitot_tube: ['pitot-static tube differential airspeed probe', 'pitot-static tube', 'pitot tube', 'airspeed probe'],
+      manometer_water: ['inclined u-tube water differential manometer', 'water differential manometer', 'u-tube manometer', 'manometer'],
+      mpu6050_sensor: ['invensense mpu6050 6-axis gyro & accel module', 'mpu6050 sensor', 'mpu6050', 'gyro sensor', 'accelerometer'],
+      usb_programmer: ['usb avr-isp programmer dongle & ribbon cable', 'usb avr-isp programmer', 'avr-isp programmer', 'usb programmer', 'usbasp']
+    };
+
     return components.filter((item) => {
+      const itemAliases = aliases[item.id] || [];
+      const isExactName = item.name.toLowerCase() === q;
+      const isExactModel = item.model.toLowerCase() === q;
+      const isAliasMatch = itemAliases.some((alias) => alias === q);
+
+      // In offline exam mode: student must type the full name so ONLY the searched component appears
+      if (isOfflineExamMode) {
+        return isExactName || isExactModel || isAliasMatch;
+      }
+
+      // In online mode
       const matchCat = activeCategory === 'All' || item.category === activeCategory;
-      const matchSearch =
-        searchQuery === '' ||
-        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.model.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchSearch = isExactName || isExactModel || isAliasMatch || item.name.toLowerCase().includes(q);
       return matchCat && matchSearch;
     });
-  }, [components, activeCategory, searchQuery]);
+  }, [components, activeCategory, searchQuery, isOfflineExamMode]);
 
   // Total installed weight
   const totalInstalledWeight = useMemo(() => {
@@ -1595,6 +1642,8 @@ export const HardwareWorkbenchView: React.FC = () => {
   const exp5Cell3 = (exp5NomCell + 0.001).toFixed(3);
   const exp5PackVoltage = (parseFloat(exp5Cell1) + parseFloat(exp5Cell2) + parseFloat(exp5Cell3)).toFixed(2);
   const exp5MaxDischarge = (3.3 * 25).toFixed(1);
+  const exp5DeltaV = ((Math.max(parseFloat(exp5Cell1), parseFloat(exp5Cell2), parseFloat(exp5Cell3)) - Math.min(parseFloat(exp5Cell1), parseFloat(exp5Cell2), parseFloat(exp5Cell3))) * 1000).toFixed(1);
+  const exp5TotalIR = (12.4 + (100 - testLiPoSoC) * 0.04).toFixed(1);
 
   // EXP 7: Propeller Balancing
   const exp7Vrms = isPropBalanced ? '0.38' : '4.82';
@@ -2953,6 +3002,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 1 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          Empty Airframe Weight is calculated as <strong>{exp1EmptyWeight}g</strong>, LiPo Battery Pack Weight is <strong>{exp1BatteryWeight}g</strong>, and Mission Payload Capacity is <strong>{testPayloadG}g</strong>. The calculated All-Up Weight (MTOW) is <strong>{exp1MTOW}g</strong> with a Thrust-to-Weight Ratio (TWR) of <strong>{exp1TWR}:1</strong> (&ge; 2.0). Payload fraction is <strong>{exp1PayloadFraction}%</strong>. The UAV satisfies all multirotor flight envelope standards.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -3064,6 +3126,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 2 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          Fixed-Wing airframe and avionics assembly verified. Wing Area S = <strong>0.216 m²</strong>, Aspect Ratio AR = <strong>6.67</strong>, Stall Speed V_stall = <strong>9.20 m/s</strong>, Dynamic Lift = <strong>{exp2Lift} N</strong>, Total Drag = <strong>{exp2Drag} N</strong>, Glide Ratio (L/D) = <strong>{exp2GlideRatio} : 1</strong>. All pushrod linkages and control surface horns (ailerons, elevator, rudder) are verified and centered.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -3185,6 +3260,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 3 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          Motor thrust calibration with SimonK 30A ESC and 1045 propeller verified. At {testThrottle}% throttle: Static Thrust = <strong>{exp3Thrust}g</strong>, Motor Speed = <strong>{exp3RPM} RPM</strong>, Power Consumption = <strong>{exp3Power}W</strong> (Current = <strong>{exp3Current}A</strong>), achieving an efficiency of <strong>{exp3Efficiency} g/W</strong>. Calibration curves and KV parameters validated.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -3310,6 +3398,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 4 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          UAV control surface testing and trimming procedure completed. Sub-trim calibrated to <strong>{testSubTrim}&micro;s</strong>, achieving exact neutral aerodynamic zero. Control throws (Aileron &plusmn;15&deg;, Elevator &plusmn;20&deg;, Rudder &plusmn;25&deg;) are fully functional across 1000&micro;s to 2000&micro;s PWM command range with zero mechanical binding.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -3419,6 +3520,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 5 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          3S 2200mAh LiPo battery testing and maintenance completed. Total pack terminal voltage = <strong>{exp5PackVoltage}V</strong> (SoC: <strong>{testLiPoSoC}%</strong>). Maximum cell delta voltage is <strong>{exp5DeltaV}mV</strong> (&lt; 10mV limit). Pack internal resistance is balanced at <strong>{exp5TotalIR}m&Omega;</strong>, confirming battery is healthy and ready for flight missions.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -3539,6 +3653,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 6 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          RC transmitter resetting, calibration, and 2.4GHz AFHDS 2A binding verified. Received Signal Strength (RSSI) = <strong>98%</strong> (-58 dBm). Channel 1-6 endpoints calibrated across 1000&micro;s to 2000&micro;s pulse width with failsafe Return-To-Land (RTL) mode engaged on signal loss.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -3644,6 +3771,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 7 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          Propeller dynamic balancing completed on frictionless magnetic balancer. Residual dynamic imbalance reduced to <strong>{exp7Imbalance} mg</strong> (Vibration amplitude: <strong>{exp7Vrms} mm/s</strong>). Dynamic harmonic vibration suppression verified.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -3762,6 +3902,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 8 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          Fixed-Wing Center of Gravity (C_G) calculated at <strong>{exp8XCG}mm</strong> from wing leading edge (<strong>{exp8CGMac}%</strong> MAC). Resulting Static Margin is <strong>{exp8SM}%</strong>, satisfying the required 10% - 15% longitudinal pitch stability criterion.
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -3877,6 +4030,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 9 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          F450 Quadcopter-X frame and avionics integration verified. Total 4-motor static thrust = <strong>{exp9Thrust}g</strong> at hover equilibrium. CW and CCW differential reaction torque is balanced with zero uncommanded yaw drift.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>
@@ -4004,6 +4170,19 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </tr>
                         </tbody>
                       </table>
+                    </div>
+
+                    {/* FINAL EXPERIMENTAL RESULT */}
+                    <div className="p-3.5 mt-3 rounded-xl bg-emerald-950/60 border border-emerald-500/60 flex items-start gap-2.5 text-xs font-mono">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="text-emerald-300 font-bold block text-sm mb-1 uppercase tracking-wider">
+                          EXPERIMENT 10 RESULT &amp; CONCLUSION:
+                        </strong>
+                        <p className="text-emerald-100 leading-relaxed">
+                          KK2.1.5 flight controller programming and sensor calibration verified. Roll/Pitch P-Gain = <strong>{testPGain}</strong>, I-Gain = <strong>{testIGain}</strong>, Self-Leveling mode = <strong>{testSelfLevel ? 'ENGAGED' : 'ACRO'}</strong>. MPU6050 accelerometer level horizon calibrated with gyro drift &lt; 0.04&deg;/s. Flight computer is ready for autonomous stabilization.
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </>

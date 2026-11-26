@@ -34,15 +34,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
-  // Register state
+  // Register state (only username, email id, password as requested!)
   const [regName, setRegName] = useState('');
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
-  const [regRoll, setRegRoll] = useState('');
-  const [regDept, setRegDept] = useState('');
 
-  // Admin Login state
-  const [adminUser, setAdminUser] = useState<'RITHIK' | 'LAKSHMI NARASIMMAN'>('RITHIK');
+  // Admin Login state (admin types their username and password directly)
+  const [adminUser, setAdminUser] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
 
   // Error/Success messages
@@ -71,17 +69,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     e.preventDefault();
     setErrorMessage(null);
     if (!regName.trim() || !regEmail.trim() || !regPassword.trim()) {
-      setErrorMessage('Please fill in all required fields (Name, Email, Password).');
+      setErrorMessage('Please fill in all required fields (Username, Email ID, Password).');
       return;
     }
-    const res = registerStudent(regName, regEmail, regPassword, regRoll, regDept);
+    const res = registerStudent(regName, regEmail, regPassword);
     if (res.success) {
-      setSuccessMessage('Account registered successfully! Entering your lab workspace...');
+      setSuccessMessage('Account created successfully! Please sign in with your email ID and password.');
+      setLoginEmail(regEmail);
+      setLoginPassword('');
+      // Do not enter automatically - redirect to login tab so user logs in with created credentials!
       setTimeout(() => {
-        setSuccessMessage(null);
-        onClose();
-        if (onSuccess) onSuccess();
-      }, 500);
+        setSuccessMessage('Please enter your password to sign in:');
+        setTab('login');
+      }, 1000);
     } else {
       setErrorMessage(res.message || 'Registration failed.');
     }
@@ -237,17 +237,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </form>
         )}
 
-        {/* TAB 2: REGISTER (CREATE ACCOUNT) */}
+        {/* TAB 2: REGISTER (CREATE ACCOUNT - ONLY USERNAME, EMAIL, PASSWORD) */}
         {tab === 'register' && (
-          <form onSubmit={handleRegisterSubmit} className="space-y-3 text-xs font-mono">
+          <form onSubmit={handleRegisterSubmit} className="space-y-3.5 text-xs font-mono">
             <div>
-              <label className="block text-slate-300 mb-1 font-bold">Student Full Name *:</label>
+              <label className="block text-slate-300 mb-1 font-bold">Username *:</label>
               <div className="relative">
                 <User className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Priya Sharma"
+                  placeholder="Enter your chosen username"
                   value={regName}
                   onChange={(e) => setRegName(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
@@ -256,13 +256,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-bold">Official Email ID *:</label>
+              <label className="block text-slate-300 mb-1 font-bold">Email ID *:</label>
               <div className="relative">
                 <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="email"
                   required
-                  placeholder="e.g. priya@university.edu"
+                  placeholder="e.g. name@example.com"
                   value={regEmail}
                   onChange={(e) => setRegEmail(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
@@ -271,39 +271,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-bold">Create Password *:</label>
+              <label className="block text-slate-300 mb-1 font-bold">Password *:</label>
               <div className="relative">
                 <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
                   required
-                  placeholder="Min 6 characters"
+                  placeholder="Enter a secure password"
                   value={regPassword}
                   onChange={(e) => setRegPassword(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="block text-slate-300 mb-1 font-bold">Roll / Register No:</label>
-                <input
-                  type="text"
-                  placeholder="e.g. AERO-2026-088"
-                  value={regRoll}
-                  onChange={(e) => setRegRoll(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-                />
-              </div>
-              <div>
-                <label className="block text-slate-300 mb-1 font-bold">Department:</label>
-                <input
-                  type="text"
-                  placeholder="Aeronautical"
-                  value={regDept}
-                  onChange={(e) => setRegDept(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-slate-900/90 border border-cyan-500/30 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                 />
               </div>
             </div>
@@ -312,44 +289,38 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               type="submit"
               className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-500 hover:from-emerald-300 hover:to-cyan-400 text-slate-950 font-black tracking-wider shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer mt-2"
             >
-              <span>CREATE ACCOUNT & ENTER</span>
+              <span>CREATE ACCOUNT</span>
               <ArrowRight className="w-4 h-4 text-slate-950" />
             </button>
           </form>
         )}
 
-        {/* TAB 3: ADMIN ACCESS */}
+        {/* TAB 3: ADMIN ACCESS (ADMIN LOGS IN THEMSELVES DIRECTLY) */}
         {tab === 'admin' && (
           <form onSubmit={handleAdminLoginSubmit} className="space-y-4 text-xs font-mono">
-            <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300 text-[11px] leading-relaxed">
-              <strong>Authorized Master Administrators:</strong>
-              <div className="mt-1 flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-slate-900 border border-amber-400/40 font-bold">RITHIK</span>
-                <span>or</span>
-                <span className="px-2 py-0.5 rounded bg-slate-900 border border-amber-400/40 font-bold">LAKSHMI NARASIMMAN</span>
+            <div>
+              <label className="block text-slate-300 mb-1 font-bold">Administrator Username:</label>
+              <div className="relative">
+                <User className="w-4 h-4 text-amber-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  required
+                  placeholder="Enter your administrator username"
+                  value={adminUser}
+                  onChange={(e) => setAdminUser(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900/90 border border-amber-500/40 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
+                />
               </div>
             </div>
 
             <div>
-              <label className="block text-slate-300 mb-1 font-bold">Select Administrator Name:</label>
-              <select
-                value={adminUser}
-                onChange={(e) => setAdminUser(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-300 font-bold focus:outline-none"
-              >
-                <option value="RITHIK">RITHIK (Administrator / HOD)</option>
-                <option value="LAKSHMI NARASIMMAN">LAKSHMI NARASIMMAN (Lab Director / Faculty)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-slate-300 mb-1 font-bold">Administrator Master Password:</label>
+              <label className="block text-slate-300 mb-1 font-bold">Master Password:</label>
               <div className="relative">
                 <KeyRound className="w-4 h-4 text-amber-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
                   type="password"
                   required
-                  placeholder="Enter administrator master password"
+                  placeholder="Enter administrator password"
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-900/90 border border-amber-500/40 text-white placeholder-slate-500 focus:outline-none focus:border-amber-400"
@@ -362,7 +333,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black tracking-wider shadow-[0_0_20px_rgba(245,158,11,0.6)] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4 text-slate-950" />
-              <span>AUTHENTICATE ADMIN PORTAL</span>
+              <span>LOGIN AS ADMINISTRATOR</span>
             </button>
           </form>
         )}

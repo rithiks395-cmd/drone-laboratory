@@ -178,9 +178,12 @@ export const HardwareWorkbenchView: React.FC = () => {
   // Big Screen / Fullscreen Mode state
   const [isFullscreenWorkbench, setIsFullscreenWorkbench] = useState<boolean>(false);
 
-  // New Project Flow: initially false (empty workbench until user creates new project!)
+  // New Project Flow: Custom Project Name & Empty Workbench
   const [hasActiveProject, setHasActiveProject] = useState<boolean>(false);
+  const [projectName, setProjectName] = useState<string>('My UAV Assembly Project');
+  const [tempProjectName, setTempProjectName] = useState<string>('My UAV Assembly Project');
   const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
+  const [showWelcomeProjectModal, setShowWelcomeProjectModal] = useState<boolean>(true);
 
   // Lighting Mode: Night and Day time working space
   const [benchTimeMode, setBenchTimeMode] = useState<'day' | 'night'>(
@@ -1002,11 +1005,17 @@ export const HardwareWorkbenchView: React.FC = () => {
   const isExpFullyAssembled = currentCompletedSteps.length === activeExpSteps.length;
   const nextExpectedStep = activeExpSteps.find((s) => !currentCompletedSteps.includes(s.stepNo));
 
-  // Start a New Assembly Project
-  const handleStartNewProject = (expNo: number) => {
+  // Start a New Assembly Project with custom name
+  const handleStartNewProject = (expNo: number, customName?: string) => {
+    if (customName && customName.trim()) {
+      setProjectName(customName.trim());
+    } else if (tempProjectName.trim()) {
+      setProjectName(tempProjectName.trim());
+    }
     setSelectedExpNo(expNo);
     setHasActiveProject(true);
     setShowNewProjectModal(false);
+    setShowWelcomeProjectModal(false);
     setIsTestRunning(false);
     setTestThrottle(0);
     setValidationAlert(null);
@@ -1134,7 +1143,10 @@ export const HardwareWorkbenchView: React.FC = () => {
         {/* Left: Project Creation CTA */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowNewProjectModal(true)}
+            onClick={() => {
+              setTempProjectName(projectName);
+              setShowNewProjectModal(true);
+            }}
             className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs font-mono shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all active:scale-95 cursor-pointer"
             title="Create an empty workspace for a new laboratory experiment"
           >
@@ -1145,7 +1157,8 @@ export const HardwareWorkbenchView: React.FC = () => {
           {hasActiveProject ? (
             <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-xs font-mono">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span className="text-cyan-300 font-bold">PROJECT: EX {selectedExpNo}</span>
+              <span className="text-amber-300 font-bold uppercase tracking-wider">PROJECT: "{projectName}"</span>
+              <span className="text-cyan-300 font-bold">| EX {selectedExpNo}</span>
               <span className="text-[10px] text-slate-400 hidden md:inline">({activeGuide.title})</span>
             </div>
           ) : (
@@ -1254,35 +1267,70 @@ export const HardwareWorkbenchView: React.FC = () => {
         </div>
       )}
 
-      {/* NEW PROJECT CREATION MODAL */}
-      {showNewProjectModal && (
+      {/* WELCOME TO AERO-SPACE LAB & CREATE PROJECT MODAL */}
+      {(showNewProjectModal || showWelcomeProjectModal) && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="relative max-w-xl w-full rounded-2xl bg-gradient-to-br from-[#0c142c] via-[#080e22] to-[#040816] border-2 border-amber-400 p-6 shadow-[0_0_60px_rgba(245,158,11,0.5)] font-mono text-slate-100">
+          <div className="relative max-w-xl w-full rounded-2xl bg-gradient-to-br from-[#0c142c] via-[#080e22] to-[#040816] border-2 border-amber-400 p-6 shadow-[0_0_70px_rgba(245,158,11,0.6)] font-mono text-slate-100 overflow-hidden">
+            
+            {/* Corner Ambient Glows */}
+            <div className="absolute -top-16 -left-16 w-48 h-48 bg-cyan-500/20 rounded-full blur-2xl pointer-events-none"></div>
+            <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-amber-500/20 rounded-full blur-2xl pointer-events-none"></div>
+
             <div className="flex items-center justify-between border-b border-amber-500/30 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <FolderPlus className="w-5 h-5 text-amber-400" />
-                <h3 className="text-base font-bold text-white">START NEW LABORATORY ASSEMBLY PROJECT</h3>
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">
+                  <Wrench className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-white tracking-wide">
+                    WELCOME TO AERO-SPACE LAB
+                  </h3>
+                  <p className="text-[11px] text-amber-300/80 font-normal">
+                    Virtual Hardware Integration & Physical 3D Assembly Workbench
+                  </p>
+                </div>
               </div>
-              <button
-                onClick={() => setShowNewProjectModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer"
-              >
-                ✕
-              </button>
+
+              {hasActiveProject && (
+                <button
+                  onClick={() => {
+                    setShowNewProjectModal(false);
+                    setShowWelcomeProjectModal(false);
+                  }}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              )}
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed mb-4">
-              Select an experiment from the syllabus. This creates a clean, empty ESD workbench with the official procedure displayed on the right.
+            {/* Custom Project Name (Save As) Input as requested by user! */}
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-200 mb-1.5">
+                PROJECT NAME (SAVE AS):
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. F450 Quadcopter Prototype, Fixed-Wing Glider, Thrust Bench..."
+                value={tempProjectName}
+                onChange={(e) => setTempProjectName(e.target.value)}
+                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-500/40 text-amber-300 font-bold text-xs focus:outline-none focus:border-cyan-400 placeholder-slate-500 shadow-inner"
+              />
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed mb-3">
+              Select an experiment to initialize. This loads an empty ESD bench and displays the official step-by-step procedure on the right:
             </p>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-72 overflow-y-auto p-1 custom-scrollbar">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1 custom-scrollbar mb-4">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
                 const g = experimentGuides[num];
                 return (
                   <button
                     key={num}
-                    onClick={() => handleStartNewProject(num)}
-                    className="p-3 rounded-xl bg-slate-900/80 hover:bg-amber-950/40 border border-slate-800 hover:border-amber-400/60 text-left transition-all group cursor-pointer"
+                    onClick={() => handleStartNewProject(num, tempProjectName)}
+                    className="p-3 rounded-xl bg-slate-900/80 hover:bg-amber-950/50 border border-slate-800 hover:border-amber-400/60 text-left transition-all group cursor-pointer"
                   >
                     <div className="text-xs font-bold text-amber-300 group-hover:text-amber-200 flex items-center justify-between">
                       <span>EXPERIMENT {num}</span>
@@ -1294,6 +1342,10 @@ export const HardwareWorkbenchView: React.FC = () => {
                   </button>
                 );
               })}
+            </div>
+
+            <div className="text-[11px] text-slate-400 text-center">
+              Click any experiment above to save project and begin 3D component assembly
             </div>
           </div>
         </div>

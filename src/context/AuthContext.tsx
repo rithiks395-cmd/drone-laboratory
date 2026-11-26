@@ -7,7 +7,7 @@ interface AuthContextType {
   users: UserAccount[];
   loginStudent: (emailOrUser: string, pass: string) => { success: boolean; message?: string };
   loginAdmin: (username: string, pass: string) => { success: boolean; message?: string };
-  registerStudent: (name: string, email: string, pass: string, roll: string, dept: string) => { success: boolean; message?: string };
+  registerStudent: (name: string, email: string, pass: string) => { success: boolean; message?: string };
   logout: () => void;
   removeStudent: (id: string) => void;
   addStudentByAdmin: (name: string, email: string, roll: string, dept: string) => void;
@@ -163,13 +163,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return { success: true };
   };
 
-  // Student Registration (Any user worldwide can create an account)
+  // Student Registration (Any user worldwide can create an account with username, email, password)
   const registerStudent = (
     name: string,
     email: string,
-    pass: string,
-    roll: string,
-    dept: string
+    pass: string
   ): { success: boolean; message?: string } => {
     const cleanEmail = email.trim().toLowerCase();
 
@@ -182,8 +180,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       name: name.trim(),
       email: cleanEmail,
       password: pass,
-      rollNumber: roll.trim() || `PSG-${Math.floor(1000 + Math.random() * 9000)}`,
-      department: dept.trim() || 'Aeronautical Engineering',
+      rollNumber: `USER-${Math.floor(1000 + Math.random() * 9000)}`,
+      department: 'Aeronautical Virtual Lab User',
       role: 'student',
       createdAt: new Date().toISOString(),
       lastActive: new Date().toISOString(),
@@ -191,7 +189,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     setUsers((prev) => [newUser, ...prev]);
-    setCurrentUser(newUser);
+    // Note: Do NOT auto-login as per user requirement! User must log in with their created email and password.
     return { success: true };
   };
 

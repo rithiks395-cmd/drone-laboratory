@@ -133,21 +133,15 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onEnterL
             <ArrowRight className="relative z-10 w-6 h-6 text-slate-950 group-hover:translate-x-2 transition-transform duration-300" />
           </button>
 
-          {/* ADMIN LOGIN SHORTCUT */}
+          {/* ADMIN LOGIN SHORTCUT (CLEAN 'Admin Portal' ALONE AS REQUESTED) */}
           <button
             onClick={onOpenAdminLogin}
-            className="flex items-center gap-2 px-6 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-2 border-amber-500/50 font-bold font-mono text-xs sm:text-sm shadow-md transition-all cursor-pointer hover:border-amber-400 active:scale-95"
+            className="flex items-center gap-2 px-7 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-2 border-amber-500/50 font-bold font-mono text-xs sm:text-sm shadow-md transition-all cursor-pointer hover:border-amber-400 active:scale-95"
             title="Institutional Master Administrator Login"
           >
             <Lock className="w-4 h-4 text-amber-400" />
-            <span>Admin Portal (RITHIK / LAKSHMI)</span>
+            <span>Admin Portal</span>
           </button>
-        </div>
-
-        {/* Bottom Institutional Credentials */}
-        <div className="mt-8 flex items-center gap-2 text-xs font-mono text-slate-400">
-          <ShieldCheck className="w-4 h-4 text-emerald-400" />
-          <span>Department of Aeronautical Engineering • PSG College of Technology</span>
         </div>
       </div>
     </div>

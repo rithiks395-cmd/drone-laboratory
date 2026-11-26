@@ -143,14 +143,16 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef }) => {
         <div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             <h1 className="text-sm sm:text-base font-bold tracking-wider text-slate-100 flex items-center gap-1">
-              <span>UAV LAB</span>
-              <span className="hidden sm:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                PRO SIM
+              <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-amber-300 bg-clip-text text-transparent font-black">
+                RITHIK'S DRONE LAB
+              </span>
+              <span className="hidden sm:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
+                SIMULATOR
               </span>
             </h1>
           </div>
           <p className="hidden md:block text-[11px] text-slate-400 font-mono tracking-tight">
-            Advanced 3D Drone Engineering & Simulation Platform
+            Aerospace Engineering Virtual Laboratory & 3D Flight Simulator
           </p>
         </div>
       </div>

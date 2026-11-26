@@ -30,47 +30,61 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="h-full flex flex-col gap-5 p-6 text-slate-200 overflow-y-auto custom-scrollbar">
-      {/* Welcome Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0d172e] via-[#091122] to-[#060a16] border border-cyan-500/30 p-6 shadow-2xl">
-        <div className="relative z-10 max-w-3xl">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono font-semibold border border-cyan-500/40 mb-3">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-            <span>ACADEMIC UAV ENGINEERING SUITE</span>
+      {/* High-Impact Aerospace Landing Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#0a1128] via-[#091738] to-[#050c1e] border-2 border-cyan-400/40 p-6 sm:p-8 shadow-[0_0_40px_rgba(6,182,212,0.25)]">
+        {/* Holographic animated scan lines & circuit glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-cyan-500/15 via-transparent to-transparent pointer-events-none"></div>
+        <div className="absolute -right-16 -top-16 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl pointer-events-none animate-pulse"></div>
+        <div className="absolute -left-16 -bottom-16 w-80 h-80 bg-cyan-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+        <div className="relative z-10 max-w-4xl">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold border border-cyan-400/50 mb-3 shadow-[0_0_12px_rgba(6,182,212,0.3)]">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <span className="tracking-widest">★ OFFICIAL AEROSPACE ENGINEERING SIMULATOR ★</span>
           </div>
-          <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
-            UAV Virtual Laboratory & 3D Flight Simulator
-          </h2>
-          <p className="mt-2 text-xs sm:text-sm text-slate-300 leading-relaxed">
-            Welcome to the comprehensive unmanned aerial vehicle engineering laboratory. Perform all 10 syllabus experiments through interactive 3D simulations, real-time aerodynamic calculations, component assembly, and generate printable laboratory records for practical exams.
+
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-white leading-tight">
+            <span className="block text-slate-300 text-lg sm:text-xl md:text-2xl font-mono tracking-wider mb-1 font-semibold text-cyan-400/90">
+              AEROSPACE UAV VIRTUAL PLATFORM
+            </span>
+            <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_25px_rgba(6,182,212,0.6)]">
+              WELCOME TO RITHIK'S DRONE LABORATORY (SIMULATOR)
+            </span>
+          </h1>
+
+          <p className="mt-3 text-xs sm:text-sm text-slate-200 leading-relaxed max-w-3xl font-normal drop-shadow">
+            Experience next-generation aeronautical flight mechanics, real 3D hardware assembly, wind tunnel aerodynamics, motor-propeller thrust telemetry, and flight controller calibration across all 10 university syllabus practical experiments.
           </p>
 
-          <div className="flex flex-wrap gap-3 mt-4">
+          <div className="flex flex-wrap gap-3.5 mt-6">
             <button
               onClick={() => setActiveView('hardware-workbench')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_25px_rgba(245,158,11,0.5)] transition-all transform hover:-translate-y-0.5 active:scale-95"
             >
-              <Wrench className="w-4 h-4" />
-              <span>Hardware Assembly Lab</span>
+              <Wrench className="w-4 h-4 text-slate-950 animate-bounce" />
+              <span>Enter Hardware Assembly Lab</span>
+              <span className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-950 text-amber-300 rounded font-bold ml-1">
+                3D ESD BENCH
+              </span>
             </button>
-            <button
-              onClick={() => setActiveView('exp1')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-glow-cyan transition-all"
-            >
-              <Play className="w-4 h-4 fill-current" />
-              <span>Start Experiment 1</span>
-            </button>
+
             <button
               onClick={() => setActiveView('flight-simulator')}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 font-semibold text-xs transition-all"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-400/50 font-bold text-xs sm:text-sm shadow-glow-cyan transition-all transform hover:-translate-y-0.5"
             >
-              <Compass className="w-4 h-4" />
-              <span>Open 3D Flight Simulator</span>
+              <Compass className="w-4 h-4 text-cyan-400" />
+              <span>Launch 3D Flight Simulator</span>
+            </button>
+
+            <button
+              onClick={() => setActiveView('exp1')}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold text-xs sm:text-sm shadow-md transition-all transform hover:-translate-y-0.5"
+            >
+              <Play className="w-4 h-4 fill-current text-slate-950" />
+              <span>Start Experiment 1</span>
             </button>
           </div>
         </div>
-
-        {/* Ambient Glow */}
-        <div className="absolute right-0 top-0 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
       </div>
 
       {/* Progress & Stat Cards */}

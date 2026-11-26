@@ -34,7 +34,11 @@ import {
   Maximize2,
   Minimize2,
   Check,
-  Power
+  Power,
+  XCircle,
+  Move,
+  Download,
+  Share2
 } from 'lucide-react';
 
 // 3D Models
@@ -58,6 +62,7 @@ export interface ComponentItem {
   qty: number;
   forExperiments: number[];
   installed: boolean;
+  visualType: 'frame' | 'arm' | 'motor' | 'esc' | 'prop' | 'fc' | 'rx' | 'tx' | 'battery' | 'pdb' | 'screws' | 'thrust_rig' | 'tacho' | 'ammeter' | 'airframe' | 'spar' | 'servo' | 'tester' | 'protractor' | 'pushrod' | 'charger' | 'checker' | 'bind_plug' | 'balancer' | 'tape' | 'airfoil' | 'pitot' | 'manometer' | 'imu' | 'programmer';
 }
 
 export interface AssemblyStep {
@@ -78,12 +83,87 @@ export interface ExperimentGuide {
   steps: AssemblyStep[];
 }
 
+// Mini 3D Component Object Preview
+const Component3DThumbnail: React.FC<{ visualType: string; isInstalled: boolean }> = ({ visualType, isInstalled }) => {
+  return (
+    <div className={`w-14 h-14 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 transition-all ${
+      isInstalled 
+        ? 'bg-emerald-950/40 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
+        : 'bg-slate-900 border-cyan-500/30'
+    }`}>
+      <Canvas className="w-full h-full" camera={{ position: [0, 0, 3], fov: 45 }}>
+        <ambientLight intensity={1.2} />
+        <directionalLight position={[2, 4, 3]} intensity={2.0} />
+        <group scale={0.7} rotation={[0.4, 0.6, 0]}>
+          {visualType === 'frame' && (
+            <mesh>
+              <cylinderGeometry args={[1, 1, 0.1, 6]} />
+              <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.2} />
+            </mesh>
+          )}
+          {visualType === 'arm' && (
+            <mesh rotation={[0, 0, Math.PI / 4]}>
+              <boxGeometry args={[2, 0.2, 0.3]} />
+              <meshStandardMaterial color="#ef4444" metalness={0.4} roughness={0.4} />
+            </mesh>
+          )}
+          {visualType === 'motor' && (
+            <group scale={0.6}>
+              <BLDCMotorModel scale={0.9} spinning={false} rpm={0} />
+            </group>
+          )}
+          {visualType === 'esc' && (
+            <group scale={0.7}>
+              <ESCModel scale={0.8} ampRating={30} />
+            </group>
+          )}
+          {visualType === 'prop' && (
+            <group scale={0.5}>
+              <PropellerModel scale={0.8} spinning={false} rpm={0} blades={2} />
+            </group>
+          )}
+          {visualType === 'battery' && (
+            <group scale={0.6}>
+              <LiPoBatteryModel scale={0.8} cells={3} />
+            </group>
+          )}
+          {visualType === 'fc' && (
+            <group scale={0.6}>
+              <KK215BoardModel scale={0.9} />
+            </group>
+          )}
+          {visualType === 'servo' && (
+            <group scale={0.6}>
+              <ServoMotorModel scale={0.9} angle={45} />
+            </group>
+          )}
+          {visualType === 'thrust_rig' && (
+            <mesh>
+              <boxGeometry args={[1.6, 0.6, 1.2]} />
+              <meshStandardMaterial color="#3b82f6" metalness={0.7} roughness={0.3} />
+            </mesh>
+          )}
+          {visualType === 'balancer' && (
+            <group scale={0.4}>
+              <BalanceStandModel scale={0.8} />
+            </group>
+          )}
+          {/* Default generic 3D hardware icon */}
+          {!['frame', 'arm', 'motor', 'esc', 'prop', 'battery', 'fc', 'servo', 'thrust_rig', 'balancer'].includes(visualType) && (
+            <mesh>
+              <octahedronGeometry args={[0.9]} />
+              <meshStandardMaterial color="#06b6d4" wireframe />
+            </mesh>
+          )}
+        </group>
+      </Canvas>
+    </div>
+  );
+};
+
 export const HardwareWorkbenchView: React.FC = () => {
   const { openInspection, setIsRecordModalOpen, setSelectedReportExpId, captureScreenshot, atmosphereTheme } = useLab();
   const workbenchRef = useRef<HTMLDivElement>(null);
-
-  // Welcome Glowing Splash Screen state
-  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
 
   // Lighting Mode: Night and Day time working space
   const [benchTimeMode, setBenchTimeMode] = useState<'day' | 'night'>(
@@ -102,6 +182,17 @@ export const HardwareWorkbenchView: React.FC = () => {
   // Explode view slider (0 to 1)
   const [explodeRatio, setExplodeRatio] = useState<number>(0);
 
+  // Drag-and-drop workspace hover state
+  const [isDropHover, setIsDropHover] = useState<boolean>(false);
+
+  // Real-time Red / Green Assembly Feedback
+  const [validationAlert, setValidationAlert] = useState<{
+    type: 'success' | 'error';
+    title: string;
+    message: string;
+    componentName: string;
+  } | null>(null);
+
   // Step progression for the selected experiment
   const [completedSteps, setCompletedSteps] = useState<Record<number, number[]>>({
     1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: []
@@ -112,7 +203,11 @@ export const HardwareWorkbenchView: React.FC = () => {
   const [isTestRunning, setIsTestRunning] = useState<boolean>(false);
   const [activeServoAngle, setActiveServoAngle] = useState<number>(45);
 
-  // Master Component Catalog for ALL 10 Experiments
+  // Output Results Modal after correct execution
+  const [showOutputModal, setShowOutputModal] = useState<boolean>(false);
+  const [isCapturingScreenshot, setIsCapturingScreenshot] = useState<boolean>(false);
+
+  // Master Component Catalog for ALL 10 Experiments with exact 3D visual types
   const [components, setComponents] = useState<ComponentItem[]>([
     {
       id: 'frame_f450',
@@ -123,7 +218,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 180,
       qty: 1,
       forExperiments: [1, 9],
-      installed: true,
+      installed: false,
+      visualType: 'frame',
     },
     {
       id: 'arms_f450',
@@ -134,7 +230,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 210,
       qty: 4,
       forExperiments: [1, 9],
-      installed: true,
+      installed: false,
+      visualType: 'arm',
     },
     {
       id: 'bldc_motors',
@@ -145,7 +242,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 190,
       qty: 4,
       forExperiments: [1, 3, 9],
-      installed: true,
+      installed: false,
+      visualType: 'motor',
     },
     {
       id: 'esc_30a',
@@ -156,7 +254,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 100,
       qty: 4,
       forExperiments: [1, 3, 9],
-      installed: true,
+      installed: false,
+      visualType: 'esc',
     },
     {
       id: 'props_1045',
@@ -167,7 +266,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 48,
       qty: 4,
       forExperiments: [1, 3, 7, 9],
-      installed: true,
+      installed: false,
+      visualType: 'prop',
     },
     {
       id: 'fc_kk215',
@@ -178,7 +278,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 22,
       qty: 1,
       forExperiments: [1, 9, 10],
-      installed: true,
+      installed: false,
+      visualType: 'fc',
     },
     {
       id: 'rc_receiver',
@@ -189,7 +290,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 14,
       qty: 1,
       forExperiments: [1, 6, 9],
-      installed: true,
+      installed: false,
+      visualType: 'rx',
     },
     {
       id: 'rc_transmitter_tx',
@@ -201,6 +303,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [6],
       installed: false,
+      visualType: 'tx',
     },
     {
       id: 'lipo_3s',
@@ -211,7 +314,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 185,
       qty: 1,
       forExperiments: [1, 3, 5, 9],
-      installed: true,
+      installed: false,
+      visualType: 'battery',
     },
     {
       id: 'pdb_xt60',
@@ -222,7 +326,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 28,
       qty: 1,
       forExperiments: [1, 9],
-      installed: true,
+      installed: false,
+      visualType: 'pdb',
     },
     {
       id: 'hardware_screws',
@@ -233,7 +338,8 @@ export const HardwareWorkbenchView: React.FC = () => {
       weightG: 45,
       qty: 1,
       forExperiments: [1, 9],
-      installed: true,
+      installed: false,
+      visualType: 'screws',
     },
     {
       id: 'thrust_rig',
@@ -245,6 +351,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [3],
       installed: false,
+      visualType: 'thrust_rig',
     },
     {
       id: 'tachometer_opt',
@@ -256,6 +363,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [3, 7],
       installed: false,
+      visualType: 'tacho',
     },
     {
       id: 'ammeter_shunt',
@@ -267,6 +375,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [3, 5],
       installed: false,
+      visualType: 'ammeter',
     },
     {
       id: 'fixed_wing_airframe',
@@ -278,6 +387,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [2, 8],
       installed: false,
+      visualType: 'airframe',
     },
     {
       id: 'wing_spar_carbon',
@@ -289,6 +399,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [2, 8],
       installed: false,
+      visualType: 'spar',
     },
     {
       id: 'servos_9g',
@@ -300,6 +411,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 4,
       forExperiments: [2, 4],
       installed: false,
+      visualType: 'servo',
     },
     {
       id: 'servo_tester',
@@ -311,6 +423,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [4],
       installed: false,
+      visualType: 'tester',
     },
     {
       id: 'protractor_dial',
@@ -322,6 +435,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [4],
       installed: false,
+      visualType: 'protractor',
     },
     {
       id: 'pushrod_linkage',
@@ -333,6 +447,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 4,
       forExperiments: [2, 4],
       installed: false,
+      visualType: 'pushrod',
     },
     {
       id: 'lipo_charger_imax',
@@ -344,6 +459,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [5],
       installed: false,
+      visualType: 'charger',
     },
     {
       id: 'lipo_cell_checker',
@@ -355,6 +471,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [5],
       installed: false,
+      visualType: 'checker',
     },
     {
       id: 'bind_plug_loop',
@@ -366,6 +483,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [6],
       installed: false,
+      visualType: 'bind_plug',
     },
     {
       id: 'prop_balancer',
@@ -377,6 +495,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [7],
       installed: false,
+      visualType: 'balancer',
     },
     {
       id: 'balance_tape',
@@ -388,6 +507,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [7],
       installed: false,
+      visualType: 'tape',
     },
     {
       id: 'airfoil_naca',
@@ -399,6 +519,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [8],
       installed: false,
+      visualType: 'airfoil',
     },
     {
       id: 'pitot_tube',
@@ -410,6 +531,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [8],
       installed: false,
+      visualType: 'pitot',
     },
     {
       id: 'manometer_water',
@@ -421,6 +543,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [8],
       installed: false,
+      visualType: 'manometer',
     },
     {
       id: 'mpu6050_sensor',
@@ -432,6 +555,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [10],
       installed: false,
+      visualType: 'imu',
     },
     {
       id: 'usb_programmer',
@@ -443,6 +567,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       qty: 1,
       forExperiments: [10],
       installed: false,
+      visualType: 'programmer',
     },
   ]);
 
@@ -899,31 +1024,68 @@ export const HardwareWorkbenchView: React.FC = () => {
   const currentCompletedSteps = completedSteps[selectedExpNo] || [];
   const isExpFullyAssembled = currentCompletedSteps.length === activeExpSteps.length;
 
-  // Toggle installation of a component
-  const toggleInstall = (id: string) => {
-    setComponents((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, installed: !c.installed } : c))
-    );
-  };
+  // The next expected step number in sequence
+  const nextExpectedStepNo = activeExpSteps.find((s) => !currentCompletedSteps.includes(s.stepNo))?.stepNo;
 
-  // Execute or complete a specific step
-  const handleExecuteStep = (stepNo: number) => {
-    setCompletedSteps((prev) => {
-      const existing = prev[selectedExpNo] || [];
-      if (existing.includes(stepNo)) return prev;
-      return {
-        ...prev,
-        [selectedExpNo]: [...existing, stepNo].sort((a, b) => a - b),
-      };
+  // CORE DRAG-AND-DROP ASSEMBLY LOGIC WITH RED/GREEN FEEDBACK
+  const handleDropComponent = (componentId: string) => {
+    setIsDropHover(false);
+
+    const comp = components.find((c) => c.id === componentId);
+    if (!comp) return;
+
+    // Check 1: Does this component belong to this experiment?
+    if (!comp.forExperiments.includes(selectedExpNo)) {
+      setValidationAlert({
+        type: 'error',
+        title: 'WRONG COMPONENT FOR THIS EXPERIMENT!',
+        message: `"${comp.name}" is not used in Experiment ${selectedExpNo}. Check the procedure on the right panel.`,
+        componentName: comp.name,
+      });
+      return;
+    }
+
+    // Check 2: Is it the expected step in the sequence?
+    const nextStep = activeExpSteps.find((s) => !currentCompletedSteps.includes(s.stepNo));
+
+    if (!nextStep) {
+      setValidationAlert({
+        type: 'success',
+        title: 'ASSEMBLY ALREADY 100% COMPLETE!',
+        message: `All steps for Experiment ${selectedExpNo} are finished. Click "RUN & EXECUTE EXPERIMENT" to test.`,
+        componentName: comp.name,
+      });
+      return;
+    }
+
+    if (nextStep.targetComponentId !== componentId) {
+      setValidationAlert({
+        type: 'error',
+        title: 'OUT-OF-SEQUENCE ASSEMBLY ERROR!',
+        message: `Cannot assemble "${comp.name}" yet! You must first complete Step ${nextStep.stepNo}: "${nextStep.title}" with "${nextStep.targetComponentName}".`,
+        componentName: comp.name,
+      });
+      return;
+    }
+
+    // CORRECT STEP! FLASH BRIGHT GREEN AND ADVANCE
+    setValidationAlert({
+      type: 'success',
+      title: 'CORRECT COMPONENT ASSEMBLED!',
+      message: `Step ${nextStep.stepNo} successfully completed: "${nextStep.title}". Component locked onto ESD workbench!`,
+      componentName: comp.name,
     });
 
-    // Auto-install the target component in 3D scene
-    const targetStep = activeExpSteps.find((s) => s.stepNo === stepNo);
-    if (targetStep) {
-      setComponents((prev) =>
-        prev.map((c) => (c.id === targetStep.targetComponentId ? { ...c, installed: true } : c))
-      );
-    }
+    // Mark step completed
+    setCompletedSteps((prev) => ({
+      ...prev,
+      [selectedExpNo]: [...(prev[selectedExpNo] || []), nextStep.stepNo],
+    }));
+
+    // Mount in 3D scene
+    setComponents((prev) =>
+      prev.map((c) => (c.id === componentId ? { ...c, installed: true } : c))
+    );
   };
 
   // Switch Experiment Number (1 to 10)
@@ -931,17 +1093,30 @@ export const HardwareWorkbenchView: React.FC = () => {
     setSelectedExpNo(expNo);
     setIsTestRunning(false);
     setTestThrottle(0);
+    setValidationAlert(null);
+    setShowOutputModal(false);
 
-    // Auto-mount key components for the selected experiment
-    const guide = experimentGuides[expNo];
-    if (guide) {
-      setComponents((prev) =>
-        prev.map((c) => ({
-          ...c,
-          installed: guide.primaryComponents.includes(c.id),
-        }))
-      );
-    }
+    // Reset components to uninstalled so user gets the full assembly satisfaction
+    setComponents((prev) =>
+      prev.map((c) => ({
+        ...c,
+        installed: false,
+      }))
+    );
+  };
+
+  // Run and execute the experiment simulation
+  const handleRunAndExecute = () => {
+    setIsTestRunning(true);
+    setTestThrottle(55);
+    setShowOutputModal(true);
+  };
+
+  // Take screenshot of the assembly / results
+  const handleCaptureResult = async () => {
+    setIsCapturingScreenshot(true);
+    await captureScreenshot(workbenchRef.current, selectedExpNo);
+    setIsCapturingScreenshot(false);
   };
 
   // Filtered components list based on Category, Search Query, and EXP filter
@@ -969,101 +1144,26 @@ export const HardwareWorkbenchView: React.FC = () => {
   const testCurrentA = Math.round((testThrottle / 100) * 12.8 * 10) / 10;
   const testVoltageV = Math.round((11.8 - (testCurrentA / 15) * 0.8) * 10) / 10;
   const testPowerW = Math.round(testCurrentA * testVoltageV);
+  const testEfficiencyGW = testPowerW > 0 ? (testThrustG / testPowerW).toFixed(2) : '0.00';
 
   return (
-    <div ref={workbenchRef} className="h-full flex flex-col bg-[#060913] text-slate-100 overflow-hidden font-sans relative">
+    <div ref={workbenchRef} className="h-full flex flex-col bg-[#050814] text-slate-100 overflow-hidden font-sans relative">
       
-      {/* 1. BRIGHTER GLOWING ANIMATED WELCOME SPLASH SCREEN MODAL */}
-      {showWelcomeModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 animate-in fade-in duration-300">
-          <div className="relative max-w-2xl w-full rounded-3xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-8 shadow-[0_0_80px_rgba(6,182,212,0.6)] text-center overflow-hidden">
-            
-            {/* Holographic animated scanline */}
-            <div className="absolute inset-0 bg-[linear-gradient(to_bottom,transparent_0%,rgba(6,182,212,0.15)_50%,transparent_100%)] bg-[length:100%_40px] animate-[pulse_3s_ease-in-out_infinite] pointer-events-none"></div>
-            
-            {/* Ambient Corner Glows */}
-            <div className="absolute -top-20 -left-20 w-60 h-60 bg-cyan-500/30 rounded-full blur-3xl pointer-events-none"></div>
-            <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-amber-500/25 rounded-full blur-3xl pointer-events-none"></div>
-
-            {/* Glowing Icon Header */}
-            <div className="relative z-10 flex flex-col items-center">
-              <div className="relative w-20 h-20 rounded-2xl bg-gradient-to-tr from-cyan-500 via-sky-400 to-amber-400 p-0.5 shadow-[0_0_35px_rgba(6,182,212,0.8)] mb-4 animate-bounce">
-                <div className="w-full h-full rounded-2xl bg-[#080d1e] flex items-center justify-center">
-                  <Wrench className="w-10 h-10 text-amber-300 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]" />
-                </div>
-              </div>
-
-              {/* Glowing Top Badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-cyan-500/20 text-cyan-300 text-xs font-mono font-bold border border-cyan-400/60 mb-3 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-                <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-                <span className="tracking-widest uppercase">VIRTUAL HARDWARE INTEGRATION SUITE</span>
-              </div>
-
-              {/* Brighter Glowing Title */}
-              <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-wider text-white">
-                <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_30px_rgba(6,182,212,0.8)]">
-                  WELCOME TO AERO-SPACE LAB
-                </span>
-              </h1>
-
-              <p className="mt-3 text-xs sm:text-sm text-slate-300 max-w-lg leading-relaxed font-normal">
-                Assemble physical aeronautical parts across all 10 university syllabus experiments, perform wiring connections, explode/assemble 3D models, and execute live telemetry tests on the ESD workbench.
-              </p>
-
-              {/* Status Indicators */}
-              <div className="grid grid-cols-3 gap-3 w-full max-w-md my-6 text-[11px] font-mono">
-                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 text-cyan-300 flex flex-col items-center gap-1 shadow-sm">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-[10px] text-slate-400">ESD BENCH</span>
-                  <span className="font-bold">GROUNDED</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 text-cyan-300 flex flex-col items-center gap-1 shadow-sm">
-                  <Cpu className="w-4 h-4 text-cyan-400" />
-                  <span className="text-[10px] text-slate-400">HARDWARE</span>
-                  <span className="font-bold">10 MODULES</span>
-                </div>
-                <div className="p-2.5 rounded-xl bg-slate-900/90 border border-cyan-500/40 text-cyan-300 flex flex-col items-center gap-1 shadow-sm">
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  <span className="text-[10px] text-slate-400">BENCH POWER</span>
-                  <span className="font-bold">12.6V READY</span>
-                </div>
-              </div>
-
-              {/* Enter Workspace Glowing CTA Button */}
-              <button
-                onClick={() => setShowWelcomeModal(false)}
-                className="group relative flex items-center gap-3 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-amber-400 hover:from-cyan-300 hover:to-amber-300 text-slate-950 font-black text-sm tracking-wider shadow-[0_0_35px_rgba(6,182,212,0.8)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer"
-              >
-                <span>ENTER 3D WORKBENCH</span>
-                <ArrowRight className="w-4 h-4 text-slate-950 group-hover:translate-x-1 transition-transform" />
-              </button>
-
-              <button
-                onClick={() => setShowWelcomeModal(false)}
-                className="mt-3 text-[11px] text-slate-400 hover:text-slate-200 underline font-mono cursor-pointer"
-              >
-                Skip intro & start immediately
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TOP BAR: Experiment 1 - 10 Selector & Lighting Mode */}
-      <div className="bg-[#090e1f] border-b border-cyan-500/30 p-2.5 px-4 flex flex-wrap items-center justify-between gap-3 shrink-0 z-20">
+      {/* TOP NAVIGATION BAR: Experiment 1 - 10 Tabs, Day/Night & Run */}
+      <div className="bg-[#080d1f] border-b border-cyan-500/30 p-2 px-3 sm:px-4 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20">
         
         {/* Left: Workbench Title */}
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">
             <Wrench className="w-4 h-4" />
           </div>
           <div>
             <h2 className="text-xs sm:text-sm font-bold text-white font-mono flex items-center gap-2">
               <span className="bg-gradient-to-r from-cyan-400 to-amber-300 bg-clip-text text-transparent">
-                AERO-SPACE LAB WORKBENCH
+                AERO-SPACE WORKBENCH
               </span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-mono">
-                EX 1-10
+                DRAG & DROP 3D
               </span>
             </h2>
           </div>
@@ -1079,7 +1179,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               <button
                 key={num}
                 onClick={() => handleSelectExperiment(num)}
-                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 flex items-center gap-1 border ${
+                className={`px-2.5 py-1 rounded-lg text-xs font-mono font-bold transition-all shrink-0 flex items-center gap-1 border cursor-pointer ${
                   isSelected
                     ? 'bg-gradient-to-r from-amber-500 to-amber-400 text-slate-950 border-amber-300 shadow-[0_0_15px_rgba(245,158,11,0.5)] scale-105'
                     : isCompleted
@@ -1100,24 +1200,24 @@ export const HardwareWorkbenchView: React.FC = () => {
           <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-cyan-500/30 text-xs font-mono">
             <button
               onClick={() => setBenchTimeMode('day')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 isDay
                   ? 'bg-amber-400 text-slate-950 font-bold shadow-sm'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="Switch to Cleanroom Day Time"
+              title="Cleanroom Day Time"
             >
               <Sun className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">DAY</span>
             </button>
             <button
               onClick={() => setBenchTimeMode('night')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 !isDay
                   ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]'
                   : 'text-slate-400 hover:text-white'
               }`}
-              title="Switch to Cyber Night Time"
+              title="Cyber HUD Night Time"
             >
               <Moon className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">NIGHT</span>
@@ -1125,30 +1225,61 @@ export const HardwareWorkbenchView: React.FC = () => {
           </div>
 
           <button
-            onClick={() => setShowWelcomeModal(true)}
-            className="p-1.5 rounded-lg bg-slate-900 text-slate-400 hover:text-cyan-300 border border-slate-800"
-            title="Re-open Welcome Screen"
+            onClick={handleCaptureResult}
+            disabled={isCapturingScreenshot}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold cursor-pointer transition-all active:scale-95"
+            title="Take High-Resolution Screenshot of Bench"
           >
-            <Sparkles className="w-4 h-4 text-amber-400" />
+            <Camera className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Screenshot</span>
           </button>
         </div>
       </div>
 
-      {/* MAIN 3-COLUMN WORKSPACE: [COMPONENTS TRAY] | [3D ESD BENCH] | [GUIDED EXECUTION PANEL] */}
+      {/* REAL-TIME RED / GREEN FLASH BANNER */}
+      {validationAlert && (
+        <div className={`p-3 px-4 border-b flex items-center justify-between gap-3 text-xs font-mono transition-all z-30 animate-in slide-in-from-top duration-300 ${
+          validationAlert.type === 'success'
+            ? 'bg-emerald-950/95 border-emerald-400 text-emerald-200 shadow-[0_0_25px_rgba(16,185,129,0.5)]'
+            : 'bg-rose-950/95 border-rose-500 text-rose-200 shadow-[0_0_25px_rgba(244,63,94,0.6)] animate-pulse'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            {validationAlert.type === 'success' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+            ) : (
+              <XCircle className="w-5 h-5 text-rose-400 shrink-0" />
+            )}
+            <div>
+              <span className="font-black tracking-wider mr-2 uppercase">
+                {validationAlert.title}
+              </span>
+              <span className="text-[11px] opacity-90">{validationAlert.message}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => setValidationAlert(null)}
+            className="text-xs px-2 py-0.5 rounded bg-black/40 hover:bg-black/60 font-bold cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* MAIN 3-COLUMN WORKSPACE: [COMPONENTS 3D SECTION] | [DRAG & DROP ESD BENCH] | [GUIDED PROCEDURE & EXECUTION] */}
       <div className="flex-1 flex overflow-hidden">
         
-        {/* 1. LEFT COLUMN: COMPONENTS SECTION WITH SEARCH BAR */}
-        <div className="w-80 md:w-88 lg:w-96 bg-[#080d1c] border-r border-slate-800/80 flex flex-col shrink-0">
+        {/* 1. LEFT COLUMN: COMPONENTS SECTION WITH EXACT 3D OBJECTS & DRAG HANDLERS */}
+        <div className="w-80 md:w-88 lg:w-96 bg-[#070b18] border-r border-slate-800/80 flex flex-col shrink-0">
           
-          {/* Search Bar & Header */}
-          <div className="p-3 border-b border-slate-800 flex flex-col gap-2.5 bg-[#0a1024]">
+          {/* Header & Search */}
+          <div className="p-3 border-b border-slate-800 flex flex-col gap-2.5 bg-[#090f22]">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
                 <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                <span>COMPONENTS SECTION</span>
+                <span>3D COMPONENTS TRAY</span>
               </span>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-cyan-500/20">
-                {components.filter((c) => c.installed).length} / {components.length} Mounted
+                {components.filter((c) => c.installed).length} / {components.length} Assembled
               </span>
             </div>
 
@@ -1157,7 +1288,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search components (motor, esc, wire...)"
+                placeholder="Search components (motor, esc, frame...)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400"
@@ -1165,7 +1296,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer"
                 >
                   ✕
                 </button>
@@ -1173,10 +1304,10 @@ export const HardwareWorkbenchView: React.FC = () => {
             </div>
 
             {/* Filter Toggle: All vs Selected EXP Only */}
-            <div className="flex items-center justify-between text-[11px] font-mono pt-1">
+            <div className="flex items-center justify-between text-[11px] font-mono pt-0.5">
               <button
                 onClick={() => setShowOnlyExpComponents(!showOnlyExpComponents)}
-                className={`flex items-center gap-1.5 px-2 py-1 rounded border transition-colors ${
+                className={`flex items-center gap-1.5 px-2 py-0.5 rounded border transition-colors cursor-pointer ${
                   showOnlyExpComponents
                     ? 'bg-amber-500/20 text-amber-300 border-amber-400/50 font-bold'
                     : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
@@ -1185,128 +1316,113 @@ export const HardwareWorkbenchView: React.FC = () => {
                 <span>Filter for EX {selectedExpNo}</span>
               </button>
               <span className="text-[10px] text-slate-500">
-                {filteredComponents.length} parts found
+                {filteredComponents.length} objects available
               </span>
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto text-[10px] font-mono pb-0.5 custom-scrollbar">
-              {['All', 'Mechanical', 'Propulsion', 'Avionics', 'Power', 'Wires & Linkages', 'Instrumentation'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap ${
-                    activeCategory === cat
-                      ? 'bg-cyan-600 text-white font-bold'
-                      : 'bg-slate-900 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
             </div>
           </div>
 
-          {/* Scrollable Component Cards List */}
+          {/* Draggable Components List with 3D Thumbnails */}
           <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
-            {filteredComponents.length === 0 ? (
-              <div className="p-6 text-center text-slate-500 text-xs font-mono">
-                No components found matching "{searchQuery}".
-              </div>
-            ) : (
-              filteredComponents.map((item) => {
-                const isForCurrentExp = item.forExperiments.includes(selectedExpNo);
+            {filteredComponents.map((item) => {
+              const isForCurrentExp = item.forExperiments.includes(selectedExpNo);
+              const isNextTarget = activeExpSteps.find((s) => !currentCompletedSteps.includes(s.stepNo))?.targetComponentId === item.id;
 
-                return (
-                  <div
-                    key={item.id}
-                    className={`p-3 rounded-xl border transition-all text-xs font-mono flex flex-col gap-1.5 ${
-                      item.installed
-                        ? 'bg-[#0d1833] border-cyan-400/50 shadow-[0_0_15px_rgba(6,182,212,0.2)]'
-                        : isForCurrentExp
-                        ? 'bg-slate-900/80 border-amber-500/40 hover:border-amber-400'
-                        : 'bg-slate-900/40 border-slate-800/80 hover:border-slate-700 opacity-80'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span
-                          className={`w-2 h-2 rounded-full shrink-0 ${
-                            item.installed ? 'bg-emerald-400 animate-ping' : 'bg-slate-600'
-                          }`}
-                        />
+              return (
+                <div
+                  key={item.id}
+                  draggable={!item.installed}
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('text/plain', item.id);
+                    e.dataTransfer.effectAllowed = 'move';
+                  }}
+                  className={`p-2.5 rounded-xl border transition-all text-xs font-mono flex gap-3 cursor-grab active:cursor-grabbing select-none ${
+                    item.installed
+                      ? 'bg-emerald-950/30 border-emerald-500/40 opacity-75'
+                      : isNextTarget
+                      ? 'bg-[#0f1d38] border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.4)] animate-pulse'
+                      : isForCurrentExp
+                      ? 'bg-slate-900/80 border-cyan-500/40 hover:border-cyan-400'
+                      : 'bg-slate-900/40 border-slate-800/80 opacity-70'
+                  }`}
+                >
+                  {/* 3D Model Miniature Thumbnail */}
+                  <Component3DThumbnail visualType={item.visualType} isInstalled={item.installed} />
+
+                  {/* Component Info & Drag CTA */}
+                  <div className="flex-1 flex flex-col justify-between min-w-0">
+                    <div>
+                      <div className="flex items-center justify-between">
                         <span className="font-bold text-white text-[11px] truncate">
                           {item.name}
                         </span>
+                        <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 font-mono shrink-0 ml-1">
+                          {item.weightG}g
+                        </span>
                       </div>
-                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 font-mono shrink-0 ml-1">
-                        {item.weightG}g
-                      </span>
+                      <p className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">{item.model}</p>
                     </div>
 
-                    <p className="text-[10px] text-slate-400 line-clamp-1">{item.model}</p>
-
-                    <div className="text-[9px] text-slate-400 bg-slate-950/80 px-2 py-1 rounded border border-slate-800 truncate">
-                      {item.specs}
-                    </div>
-
-                    {/* Experiment Tags */}
                     <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {item.forExperiments.map((e) => (
-                          <span
-                            key={e}
-                            className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                              e === selectedExpNo
-                                ? 'bg-amber-500/25 text-amber-300 border border-amber-400/40 font-bold'
-                                : 'bg-slate-800 text-slate-400'
-                            }`}
-                          >
-                            EX {e}
-                          </span>
-                        ))}
-                      </div>
+                      <span className="text-[8px] text-slate-500 uppercase tracking-wider">
+                        {item.category}
+                      </span>
 
-                      <button
-                        onClick={() => toggleInstall(item.id)}
-                        className={`px-2.5 py-1 rounded-lg text-[10px] font-bold font-mono transition-transform active:scale-95 flex items-center gap-1 ${
-                          item.installed
-                            ? 'bg-rose-950/80 hover:bg-rose-900 text-rose-300 border border-rose-700/60'
-                            : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-glow-cyan'
-                        }`}
-                      >
-                        {item.installed ? (
-                          <>
-                            <Trash2 className="w-3 h-3" /> Remove
-                          </>
-                        ) : (
-                          <>
-                            <Plus className="w-3 h-3" /> Place
-                          </>
-                        )}
-                      </button>
+                      {item.installed ? (
+                        <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Assembled
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => handleDropComponent(item.id)}
+                          className="px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[9px] shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
+                          title="Click to drop into workspace"
+                        >
+                          <Move className="w-2.5 h-2.5" />
+                          <span>Drop to Bench</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                );
-              })
-            )}
+                </div>
+              );
+            })}
           </div>
 
-          {/* Mass & Status Footer */}
-          <div className="p-2.5 border-t border-slate-800 bg-[#070b16] flex items-center justify-between text-xs font-mono">
-            <span className="text-slate-400">BENCH TOTAL MASS:</span>
-            <span className="text-cyan-300 font-bold">{totalInstalledWeight} grams</span>
+          {/* Tray Mass Summary */}
+          <div className="p-2.5 border-t border-slate-800 bg-[#060a14] flex items-center justify-between text-xs font-mono">
+            <span className="text-slate-400">BENCH LOAD:</span>
+            <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
           </div>
         </div>
 
-        {/* 2. CENTER COLUMN: 3D ESD LABORATORY WORKBENCH (NIGHT / DAY) */}
-        <div className="flex-1 flex flex-col relative bg-[#040711] overflow-hidden">
-          
-          <div className="flex-1 relative">
+        {/* 2. CENTER COLUMN: 3D ESD WORKSPACE (DRAG & DROP TARGET) */}
+        <div 
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDropHover(true);
+          }}
+          onDragLeave={() => setIsDropHover(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            const compId = e.dataTransfer.getData('text/plain');
+            handleDropComponent(compId);
+          }}
+          className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-300 ${
+            isDropHover 
+              ? 'border-4 border-dashed border-cyan-400 bg-cyan-950/20 shadow-[0_0_50px_rgba(6,182,212,0.5)]'
+              : validationAlert?.type === 'error'
+              ? 'border-2 border-rose-500/80 shadow-[0_0_40px_rgba(244,63,94,0.4)]'
+              : validationAlert?.type === 'success'
+              ? 'border-2 border-emerald-400/80 shadow-[0_0_40px_rgba(16,185,129,0.4)]'
+              : 'border border-transparent'
+          }`}
+        >
+          {/* 3D Scene Canvas */}
+          <div className="flex-1 relative bg-[#04060f]">
             <Canvas shadows className="w-full h-full">
               <PerspectiveCamera makeDefault position={[0, 4.5, 6]} fov={45} />
-              <ambientLight intensity={isDay ? 1.2 : 0.6} />
-              <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.0 : 1.4} castShadow />
+              <ambientLight intensity={isDay ? 1.3 : 0.6} />
+              <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.2 : 1.4} castShadow />
               <pointLight position={[0, 3, 0]} intensity={0.9} color={isDay ? '#ffffff' : '#00f0ff'} />
 
               {/* Night Mode Stars */}
@@ -1366,12 +1482,10 @@ export const HardwareWorkbenchView: React.FC = () => {
               {/* EX 3: Motor Thrust Calibration Rig */}
               {selectedExpNo === 3 && (
                 <group position={[0, 0, 0]}>
-                  {/* Digital Thrust Stand Bed */}
                   <mesh position={[0, 0.25, 0]}>
                     <boxGeometry args={[1.8, 0.5, 3.2]} />
                     <meshStandardMaterial color={isDay ? '#64748b' : '#1e293b'} metalness={0.7} roughness={0.3} />
                   </mesh>
-                  {/* Motor on Test Mount */}
                   <group position={[0, 0.65, -0.5]}>
                     <BLDCMotorModel
                       scale={1.2}
@@ -1387,7 +1501,6 @@ export const HardwareWorkbenchView: React.FC = () => {
                       />
                     </group>
                   </group>
-                  {/* ESC & LiPo on Bed */}
                   <group position={[-0.5, 0.55, 0.6]}>
                     <ESCModel scale={0.8} ampRating={30} />
                   </group>
@@ -1403,7 +1516,6 @@ export const HardwareWorkbenchView: React.FC = () => {
                   <group position={[0, 0.3, 0]}>
                     <ServoMotorModel scale={1.8} angle={activeServoAngle} />
                   </group>
-                  {/* Protractor Scale Arc */}
                   <mesh position={[0, 0.05, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
                     <ringGeometry args={[1.2, 1.6, 32, 1, 0, Math.PI]} />
                     <meshStandardMaterial color="#f59e0b" metalness={0.5} roughness={0.5} />
@@ -1417,7 +1529,6 @@ export const HardwareWorkbenchView: React.FC = () => {
                   <group position={[-1.0, 0.2, 0]}>
                     <LiPoBatteryModel scale={1.3} cells={3} />
                   </group>
-                  {/* IMAX B6 Charger */}
                   <group position={[1.0, 0.2, 0]}>
                     <mesh>
                       <boxGeometry args={[1.8, 0.4, 1.3]} />
@@ -1462,12 +1573,10 @@ export const HardwareWorkbenchView: React.FC = () => {
               {/* EX 8: Subsonic Airfoil Wind Tunnel */}
               {selectedExpNo === 8 && (
                 <group position={[0, 0.4, 0]}>
-                  {/* Airfoil Section */}
                   <mesh rotation={[0, 0, 0.15]}>
                     <boxGeometry args={[0.2, 1.2, 3.0]} />
                     <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
                   </mesh>
-                  {/* Tunnel Rails */}
                   <mesh position={[0, -0.3, 0]}>
                     <boxGeometry args={[2.5, 0.1, 4.0]} />
                     <meshStandardMaterial color="#1e293b" wireframe />
@@ -1485,7 +1594,17 @@ export const HardwareWorkbenchView: React.FC = () => {
               <OrbitControls enableDamping dampingFactor={0.05} />
             </Canvas>
 
-            {/* 3D Canvas HUD Controls: Explode Slider & Lighting Indicator */}
+            {/* Drag & Drop Overlay Prompter */}
+            {isDropHover && (
+              <div className="absolute inset-0 bg-cyan-500/20 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none z-30 animate-pulse">
+                <Move className="w-12 h-12 text-cyan-300 mb-2 animate-bounce" />
+                <span className="text-base font-black text-cyan-200 font-mono tracking-widest uppercase">
+                  DROP COMPONENT HERE TO ASSEMBLE
+                </span>
+              </div>
+            )}
+
+            {/* 3D Canvas HUD Controls: Explode Slider */}
             <div className="absolute top-3 right-3 bg-[#0a1024]/90 backdrop-blur-md p-2.5 rounded-xl border border-cyan-500/30 flex items-center gap-3 text-xs font-mono shadow-md">
               <span className="text-slate-400">EXPLODE VIEW:</span>
               <input
@@ -1503,22 +1622,22 @@ export const HardwareWorkbenchView: React.FC = () => {
             {/* Bottom Guidance Info */}
             <div className="absolute bottom-3 left-3 bg-[#0a1024]/90 backdrop-blur-md px-3 py-2 rounded-xl border border-cyan-500/30 text-[11px] font-mono text-slate-300 flex items-center gap-2">
               <Info className="w-4 h-4 text-cyan-400 shrink-0" />
-              <span>Rotate view with mouse/touch • Complete steps in right execution panel</span>
+              <span>Drag components from left tray into this workspace • Green = Correct, Red = Wrong!</span>
             </div>
           </div>
         </div>
 
-        {/* 3. RIGHT COLUMN: GUIDED STEP-BY-STEP EXECUTION PANEL (EX NO & HOW TO EXECUTE) */}
-        <div className="w-84 md:w-96 lg:w-[420px] bg-[#080d1c] border-l border-slate-800/80 flex flex-col shrink-0 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+        {/* 3. RIGHT COLUMN: GUIDED PROCEDURE & LIVE EXECUTION OUTPUT */}
+        <div className="w-84 md:w-96 lg:w-[420px] bg-[#070b18] border-l border-slate-800/80 flex flex-col shrink-0 overflow-y-auto p-4 space-y-4 custom-scrollbar">
           
-          {/* Header: Selected Experiment No & Title */}
+          {/* Header: Selected Experiment No & Procedure */}
           <div className="border-b border-slate-800 pb-3">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold border border-amber-500/40">
                 EXPERIMENT NO {activeGuide.expNo}
               </span>
               <span className="text-[10px] font-mono text-cyan-400">
-                {currentCompletedSteps.length} / {activeExpSteps.length} Steps
+                {currentCompletedSteps.length} / {activeExpSteps.length} Steps Done
               </span>
             </div>
 
@@ -1530,7 +1649,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               {activeGuide.aim}
             </p>
 
-            {/* Assembly Progress Bar */}
+            {/* Progress Bar */}
             <div className="mt-3 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
               <div
                 className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300"
@@ -1541,52 +1660,59 @@ export const HardwareWorkbenchView: React.FC = () => {
             </div>
           </div>
 
-          {/* Assembly Success Banner when 100% complete */}
-          {isExpFullyAssembled && (
-            <div className="p-3.5 rounded-xl bg-emerald-950/70 border border-emerald-400/50 text-emerald-300 text-xs font-mono flex flex-col gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-in fade-in">
-              <div className="flex items-center gap-2 font-bold text-emerald-200">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>EX {selectedExpNo} ASSEMBLY & WIRING 100% COMPLETE!</span>
-              </div>
-              <p className="text-[10px] text-emerald-300/90 leading-relaxed">
-                All physical hardware parts and connections are properly seated. You can now execute live tests or generate your official laboratory record sheet.
-              </p>
-              <button
-                onClick={() => {
-                  setSelectedReportExpId(selectedExpNo);
-                  setIsRecordModalOpen(true);
-                }}
-                className="mt-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                <FileText className="w-4 h-4 text-slate-950" />
-                <span>Generate Official Lab Record Sheet</span>
-              </button>
+          {/* RUN / EXECUTE BUTTON (Unlocks when 100% complete) */}
+          <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col gap-2">
+            <div className="flex items-center justify-between text-xs font-mono">
+              <span className="text-slate-400 font-bold">EXPERIMENT STATUS:</span>
+              <span className={isExpFullyAssembled ? 'text-emerald-400 font-bold' : 'text-amber-400'}>
+                {isExpFullyAssembled ? 'READY TO EXECUTE' : `STEP ${nextExpectedStepNo || 1} PENDING`}
+              </span>
             </div>
-          )}
 
-          {/* STEP-BY-STEP EXECUTION PROTOCOL */}
+            <button
+              onClick={handleRunAndExecute}
+              disabled={!isExpFullyAssembled}
+              className={`w-full py-3 rounded-xl font-mono font-black text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                isExpFullyAssembled
+                  ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.5)] active:scale-95'
+                  : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+              }`}
+            >
+              <Play className="w-4 h-4 fill-current" />
+              <span>RUN & EXECUTE EXPERIMENT</span>
+            </button>
+          </div>
+
+          {/* STEP-BY-STEP PROCEDURE LIST */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-slate-200 font-mono flex items-center gap-1.5">
               <Activity className="w-3.5 h-3.5 text-cyan-400" />
-              <span>STEP-BY-STEP ASSEMBLY & WIRING GUIDE</span>
+              <span>EXPERIMENT ASSEMBLY PROCEDURE</span>
             </h4>
 
             {activeExpSteps.map((step) => {
               const isStepDone = currentCompletedSteps.includes(step.stepNo);
+              const isCurrentStep = step.stepNo === nextExpectedStepNo;
 
               return (
                 <div
                   key={step.stepNo}
-                  className={`p-3.5 rounded-xl border transition-all text-xs font-mono flex flex-col gap-2 ${
+                  className={`p-3 rounded-xl border transition-all text-xs font-mono flex flex-col gap-2 ${
                     isStepDone
-                      ? 'bg-[#0b172a] border-emerald-500/40 text-slate-300'
-                      : 'bg-slate-900/80 border-slate-800 text-slate-300 hover:border-slate-700'
+                      ? 'bg-emerald-950/25 border-emerald-500/50 text-slate-300'
+                      : isCurrentStep
+                      ? 'bg-[#0e1b36] border-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                      : 'bg-slate-900/60 border-slate-800 text-slate-400'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="font-bold text-white text-[11px] flex items-center gap-1.5">
+                    <span className="font-bold text-[11px] flex items-center gap-1.5">
                       <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                        isStepDone ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-cyan-300'
+                        isStepDone 
+                          ? 'bg-emerald-500 text-slate-950' 
+                          : isCurrentStep
+                          ? 'bg-amber-400 text-slate-950 animate-bounce'
+                          : 'bg-slate-800 text-slate-400'
                       }`}>
                         {isStepDone ? '✓' : step.stepNo}
                       </span>
@@ -1610,37 +1736,36 @@ export const HardwareWorkbenchView: React.FC = () => {
                     {step.instruction}
                   </p>
 
-                  {/* Wire Connection Details if present */}
                   {step.wireInfo && (
                     <div className="p-2 rounded-lg bg-slate-950/90 border border-cyan-500/20 text-[10px] text-cyan-300 font-mono">
-                      <div className="font-bold text-amber-300 mb-0.5">⚡ WIRING SPECIFICATION:</div>
+                      <div className="font-bold text-amber-300 mb-0.5">⚡ WIRING CONNECTION:</div>
                       {step.wireInfo}
                     </div>
                   )}
 
-                  {/* Step Action Button */}
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[10px] text-slate-400 truncate max-w-[180px]">
-                      Part: {step.targetComponentName}
+                      Required: {step.targetComponentName}
                     </span>
 
                     <button
-                      onClick={() => handleExecuteStep(step.stepNo)}
-                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold font-mono transition-transform active:scale-95 flex items-center gap-1.5 cursor-pointer ${
+                      onClick={() => handleDropComponent(step.targetComponentId)}
+                      disabled={isStepDone}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold font-mono transition-transform active:scale-95 flex items-center gap-1 cursor-pointer ${
                         isStepDone
-                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30'
+                          ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30 cursor-default'
                           : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-glow-cyan'
                       }`}
                     >
                       {isStepDone ? (
                         <>
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Step Completed</span>
+                          <span>Correct</span>
                         </>
                       ) : (
                         <>
-                          <Play className="w-3.5 h-3.5 fill-current text-white" />
-                          <span>Execute Step</span>
+                          <Move className="w-3 h-3" />
+                          <span>Snap to Bench</span>
                         </>
                       )}
                     </button>
@@ -1649,31 +1774,63 @@ export const HardwareWorkbenchView: React.FC = () => {
               );
             })}
           </div>
+        </div>
+      </div>
 
-          {/* LIVE EXPERIMENT TELEMETRY TEST CONTROLS */}
-          <div className="p-3.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col gap-3 font-mono text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-slate-300 font-bold flex items-center gap-1.5">
-                <Gauge className="w-4 h-4 text-amber-400" />
-                <span>BENCH LIVE TELEMETRY</span>
-              </span>
+      {/* 4. FINAL OUTPUT & SCREENSHOT MODAL (When Experiment Executes) */}
+      {showOutputModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
+          <div className="relative max-w-3xl w-full rounded-2xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-6 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.5)] overflow-hidden">
+            
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400 animate-pulse" />
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold font-mono text-white">
+                    EX {selectedExpNo} LIVE EXPERIMENT RESULTS & TELEMETRY
+                  </h3>
+                  <p className="text-xs text-slate-400 font-mono">
+                    {activeGuide.title}
+                  </p>
+                </div>
+              </div>
               <button
-                onClick={() => setIsTestRunning(!isTestRunning)}
-                className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  isTestRunning
-                    ? 'bg-rose-500 hover:bg-rose-400 text-slate-950'
-                    : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950'
-                }`}
+                onClick={() => setShowOutputModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer"
               >
-                <Power className="w-3 h-3" />
-                <span>{isTestRunning ? 'STOP' : 'START BENCH'}</span>
+                ✕ Close
               </button>
             </div>
 
-            {/* ESC / Motor PWM Slider */}
-            <div>
-              <div className="flex items-center justify-between text-[11px] mb-1">
-                <span className="text-slate-400">PWM Throttle:</span>
+            {/* Results Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono mb-4">
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                <div className="text-slate-400 text-[10px]">PEAK THRUST:</div>
+                <div className="text-xl font-black text-cyan-300">{testThrustG} g</div>
+                <div className="text-[10px] text-emerald-400 mt-1">✓ Nominal Spec</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                <div className="text-slate-400 text-[10px]">ROTATIONAL SPEED:</div>
+                <div className="text-xl font-black text-emerald-400">{testRPM} RPM</div>
+                <div className="text-[10px] text-cyan-400 mt-1">Optical Laser Locked</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                <div className="text-slate-400 text-[10px]">CURRENT DRAW:</div>
+                <div className="text-xl font-black text-amber-300">{testCurrentA} A</div>
+                <div className="text-[10px] text-slate-400 mt-1">@ {testVoltageV}V DC</div>
+              </div>
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                <div className="text-slate-400 text-[10px]">POWER EFFICIENCY:</div>
+                <div className="text-xl font-black text-purple-300">{testEfficiencyGW} g/W</div>
+                <div className="text-[10px] text-purple-400 mt-1">Bus: {testPowerW} W</div>
+              </div>
+            </div>
+
+            {/* Telemetry Throttle Adjustment */}
+            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2 font-mono text-xs mb-4">
+              <div className="flex items-center justify-between">
+                <span className="text-slate-300 font-bold">DYNAMIC THROTTLE SWEEP:</span>
                 <span className="text-cyan-300 font-bold">{testThrottle}%</span>
               </div>
               <input
@@ -1681,52 +1838,89 @@ export const HardwareWorkbenchView: React.FC = () => {
                 min={0}
                 max={100}
                 value={testThrottle}
-                disabled={!isTestRunning}
                 onChange={(e) => setTestThrottle(parseInt(e.target.value, 10))}
-                className="w-full accent-cyan-400 cursor-pointer disabled:opacity-40"
+                className="w-full accent-cyan-400 cursor-pointer"
               />
             </div>
 
-            {/* Servo Angle Slider for EX 2 & 4 */}
-            {(selectedExpNo === 2 || selectedExpNo === 4) && (
-              <div>
-                <div className="flex items-center justify-between text-[11px] mb-1">
-                  <span className="text-slate-400">Servo Horn Angle:</span>
-                  <span className="text-amber-300 font-bold">{activeServoAngle}°</span>
-                </div>
-                <input
-                  type="range"
-                  min={0}
-                  max={180}
-                  value={activeServoAngle}
-                  onChange={(e) => setActiveServoAngle(parseInt(e.target.value, 10))}
-                  className="w-full accent-amber-400 cursor-pointer"
-                />
+            {/* Official Observation Table */}
+            <div className="border border-slate-800 rounded-xl overflow-hidden mb-5 text-xs font-mono">
+              <div className="bg-slate-900/90 p-2 font-bold text-slate-300 border-b border-slate-800">
+                LABORATORY OBSERVATION RECORD (SAMPLE DATA)
               </div>
-            )}
+              <table className="w-full text-left text-[11px]">
+                <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
+                  <tr>
+                    <th className="p-2">S.No</th>
+                    <th className="p-2">Throttle (%)</th>
+                    <th className="p-2">Speed (RPM)</th>
+                    <th className="p-2">Voltage (V)</th>
+                    <th className="p-2">Current (A)</th>
+                    <th className="p-2">Thrust (g)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                  <tr>
+                    <td className="p-2">1</td>
+                    <td className="p-2">20%</td>
+                    <td className="p-2">1,960</td>
+                    <td className="p-2">12.4</td>
+                    <td className="p-2">2.5</td>
+                    <td className="p-2">120</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2">2</td>
+                    <td className="p-2">40%</td>
+                    <td className="p-2">3,920</td>
+                    <td className="p-2">12.1</td>
+                    <td className="p-2">5.1</td>
+                    <td className="p-2">310</td>
+                  </tr>
+                  <tr>
+                    <td className="p-2">3</td>
+                    <td className="p-2">60%</td>
+                    <td className="p-2">5,880</td>
+                    <td className="p-2">11.8</td>
+                    <td className="p-2">7.6</td>
+                    <td className="p-2">530</td>
+                  </tr>
+                  <tr className="bg-cyan-950/20 font-bold text-cyan-300">
+                    <td className="p-2">4</td>
+                    <td className="p-2">{testThrottle}%</td>
+                    <td className="p-2">{testRPM}</td>
+                    <td className="p-2">{testVoltageV}</td>
+                    <td className="p-2">{testCurrentA}</td>
+                    <td className="p-2">{testThrustG}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
-            {/* Readout Telemetry Gauges */}
-            <div className="grid grid-cols-2 gap-2 text-[10px]">
-              <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                <div className="text-slate-500">THRUST GAUGED:</div>
-                <div className="text-sm font-bold text-cyan-300">{testThrustG} g</div>
-              </div>
-              <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                <div className="text-slate-500">OPTICAL TACHOMETER:</div>
-                <div className="text-sm font-bold text-emerald-400">{testRPM} RPM</div>
-              </div>
-              <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                <div className="text-slate-500">DC CURRENT:</div>
-                <div className="text-sm font-bold text-amber-300">{testCurrentA} A</div>
-              </div>
-              <div className="p-2 rounded-lg bg-slate-950 border border-slate-800">
-                <div className="text-slate-500">BUS POWER:</div>
-                <div className="text-sm font-bold text-purple-300">{testPowerW} W</div>
-              </div>
+            {/* ACTION BUTTONS: SCREENSHOT & LAB RECORD */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+              <button
+                onClick={handleCaptureResult}
+                disabled={isCapturingScreenshot}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all cursor-pointer active:scale-95"
+              >
+                <Camera className="w-4 h-4 text-slate-950" />
+                <span>📷 TAKE SCREENSHOT OF OUTPUT</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  setSelectedReportExpId(selectedExpNo);
+                  setIsRecordModalOpen(true);
+                }}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95"
+              >
+                <FileText className="w-4 h-4 text-slate-950" />
+                <span>PRINT FULL LAB RECORD</span>
+              </button>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

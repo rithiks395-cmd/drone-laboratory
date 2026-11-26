@@ -8,6 +8,7 @@ import { ScreenshotModal } from './components/common/ScreenshotModal';
 import { ComponentInspectionModal } from './components/common/ComponentInspectionModal';
 import { MobileControllerView } from './components/mobile-controller/MobileControllerView';
 import { DEFAULT_ROOM_CODE } from './utils/remoteControllerLink';
+import { LandingIntroScreen } from './components/layout/LandingIntroScreen';
 import { Smartphone, Gamepad2, ArrowRight } from 'lucide-react';
 
 // Experiment Views
@@ -67,6 +68,11 @@ const LabApp: React.FC = () => {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const { inspectedComponent, closeInspection, openInspection } = useLab();
 
+  // Check if user has entered the lab from the initial landing screen
+  const [hasEnteredLab, setHasEnteredLab] = useState(() => {
+    return sessionStorage.getItem('rithik_lab_entered') === 'true';
+  });
+
   // Check if opened as dedicated mobile controller (via QR scan or ?mode=controller)
   const [isMobileControllerMode, setIsMobileControllerMode] = useState(false);
   const [controllerRoomCode, setControllerRoomCode] = useState(DEFAULT_ROOM_CODE);
@@ -93,6 +99,18 @@ const LabApp: React.FC = () => {
           setIsMobileControllerMode(false);
           // Clean URL without reloading
           window.history.replaceState({}, '', window.location.pathname);
+        }}
+      />
+    );
+  }
+
+  // If user has not yet entered the lab, show the full-screen glowing animated intro!
+  if (!hasEnteredLab) {
+    return (
+      <LandingIntroScreen
+        onEnterLab={() => {
+          sessionStorage.setItem('rithik_lab_entered', 'true');
+          setHasEnteredLab(true);
         }}
       />
     );

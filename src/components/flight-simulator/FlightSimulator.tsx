@@ -9,7 +9,8 @@ import {
   DroneHostConnection, 
   ControllerPacket, 
   TelemetryPacket, 
-  generatePairingCode 
+  generatePairingCode,
+  DEFAULT_ROOM_CODE 
 } from '../../utils/remoteControllerLink';
 import { MobilePairingModal } from '../mobile-controller/MobilePairingModal';
 import { 
@@ -27,7 +28,8 @@ import {
   Compass,
   Smartphone,
   Radio,
-  CheckCircle2
+  CheckCircle2,
+  Gamepad2
 } from 'lucide-react';
 
 interface DroneFlightState {
@@ -122,7 +124,7 @@ const DroneFlightEntity: React.FC<{
 };
 
 export const FlightSimulator: React.FC = () => {
-  const { atmosphereTheme, toggleAtmosphereTheme, graphicsQuality } = useLab();
+  const { atmosphereTheme, toggleAtmosphereTheme, graphicsQuality, isPhoneModalOpen, setIsPhoneModalOpen } = useLab();
   const isDay = atmosphereTheme === 'day';
 
   const [droneState, setDroneState] = useState<DroneFlightState>({
@@ -138,12 +140,21 @@ export const FlightSimulator: React.FC = () => {
   const [cameraMode, setCameraMode] = useState<CameraViewMode>('CHASE');
   const [showTouchJoysticks, setShowTouchJoysticks] = useState(true);
 
-  // Phone remote controller pairing state
-  const [roomCode, setRoomCode] = useState(() => generatePairingCode());
+  // Phone remote controller pairing state (default to '1001' for instant pairing)
+  const [roomCode, setRoomCode] = useState(() => {
+    return localStorage.getItem('uav_active_room_code') || DEFAULT_ROOM_CODE;
+  });
   const [isPhoneConnected, setIsPhoneConnected] = useState(false);
   const [rxPacketCount, setRxPacketCount] = useState(0);
   const [isPairingModalOpen, setIsPairingModalOpen] = useState(false);
   const hostConnRef = useRef<DroneHostConnection | null>(null);
+
+  // Auto-open modal when requested from Header button
+  useEffect(() => {
+    if (isPhoneModalOpen) {
+      setIsPairingModalOpen(true);
+    }
+  }, [isPhoneModalOpen]);
 
   // Keyboard controls tracking
   const keysPressed = useRef<{ [key: string]: boolean }>({});
@@ -429,6 +440,19 @@ export const FlightSimulator: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setShowTouchJoysticks(!showTouchJoysticks)}
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg border font-mono transition-all ${
+              showTouchJoysticks
+                ? 'bg-cyan-500/25 border-cyan-400 text-cyan-300 shadow-glow-cyan'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-400 border-slate-700'
+            }`}
+            title="Toggle On-Screen Virtual Joysticks (Desktop / Mobile)"
+          >
+            <Gamepad2 className="w-3.5 h-3.5" />
+            <span className="hidden md:inline">Joysticks</span>
+          </button>
+
+          <button
             onClick={cycleCameraMode}
             className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 font-mono"
             title="Toggle Camera View (Chase / FPV / Orbit)"
@@ -618,20 +642,20 @@ export const FlightSimulator: React.FC = () => {
 
         {/* On-Screen Touch Joysticks (when on mobile or testing) */}
         {showTouchJoysticks && (
-          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between pointer-events-auto sm:hidden">
-            <div className="bg-[#0a0f1d]/75 backdrop-blur-md p-1.5 rounded-3xl border border-cyan-500/30">
+          <div className="absolute bottom-4 left-4 right-4 flex items-end justify-between pointer-events-auto">
+            <div className="bg-[#0a0f1d]/85 backdrop-blur-md p-2 rounded-3xl border border-cyan-500/40 shadow-glow-cyan">
               <VirtualJoystick
-                label="THROTTLE"
-                size={105}
+                label="THROTTLE / YAW"
+                size={115}
                 springReturnY={false}
                 initialY={-0.8}
                 onChange={handleLeftJoystick}
               />
             </div>
-            <div className="bg-[#0a0f1d]/75 backdrop-blur-md p-1.5 rounded-3xl border border-cyan-500/30">
+            <div className="bg-[#0a0f1d]/85 backdrop-blur-md p-2 rounded-3xl border border-cyan-500/40 shadow-glow-cyan">
               <VirtualJoystick
                 label="PITCH / ROLL"
-                size={105}
+                size={115}
                 springReturnY={true}
                 onChange={handleRightJoystick}
               />
@@ -643,8 +667,11 @@ export const FlightSimulator: React.FC = () => {
       {/* Mobile Pairing QR Code Modal */}
       <MobilePairingModal
         roomCode={roomCode}
-        isOpen={isPairingModalOpen}
-        onClose={() => setIsPairingModalOpen(false)}
+        isOpen={isPairingModalOpen || isPhoneModalOpen}
+        onClose={() => {
+          setIsPairingModalOpen(false);
+          setIsPhoneModalOpen(false);
+        }}
         isPhoneConnected={isPhoneConnected}
       />
     </div>

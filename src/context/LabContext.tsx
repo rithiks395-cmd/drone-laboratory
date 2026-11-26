@@ -34,6 +34,10 @@ interface LabContextType {
   setMobileMenuOpen: (open: boolean) => void;
   graphicsQuality: 'high' | 'low';
   toggleGraphicsQuality: () => void;
+
+  // Phone Joystick Remote Pairing Modal
+  isPhoneModalOpen: boolean;
+  setIsPhoneModalOpen: (open: boolean) => void;
 }
 
 const LabContext = createContext<LabContextType | undefined>(undefined);
@@ -94,6 +98,7 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [graphicsQuality, setGraphicsQuality] = useState<'high' | 'low'>('high');
+  const [isPhoneModalOpen, setIsPhoneModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY_EXPERIMENTS, JSON.stringify(experiments));
@@ -233,6 +238,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setMobileMenuOpen,
         graphicsQuality,
         toggleGraphicsQuality,
+        isPhoneModalOpen,
+        setIsPhoneModalOpen,
       }}
     >
       {children}

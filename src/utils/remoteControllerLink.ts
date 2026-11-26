@@ -75,6 +75,19 @@ export class DroneHostConnection {
       };
     } catch (e) {}
 
+    // Storage event fallback (guaranteed cross-window synchronization)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', (e) => {
+        if (e.key === `uav_ctrl_${this.roomCode}` && e.newValue) {
+          try {
+            const packet = JSON.parse(e.newValue);
+            this.markActive();
+            this.onPacketReceived?.(packet);
+          } catch (err) {}
+        }
+      });
+    }
+
     // 2. Local Vite SSE Relay (only when running locally on dev server)
     this.initLocalRelay();
 
@@ -354,6 +367,11 @@ export class MobileControllerConnection {
           }).catch(() => {});
         } catch (e) {}
       }
+
+      // 4. LocalStorage multi-window fallback
+      try {
+        localStorage.setItem(`uav_ctrl_${this.roomCode}`, JSON.stringify(packet));
+      } catch (e) {}
     }
   }
 

@@ -38,6 +38,8 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
     mobileMenuOpen,
     setMobileMenuOpen,
     setActiveView,
+    isPhoneModalOpen,
+    setIsPhoneModalOpen,
   } = useLab();
 
   const [isCapturing, setIsCapturing] = useState(false);
@@ -161,16 +163,19 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
 
         {/* Phone Joystick Controller */}
         <button
-          onClick={() => setActiveView('flight-simulator')}
-          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shrink-0 ${
+          onClick={() => {
+            setActiveView('flight-simulator');
+            setIsPhoneModalOpen(true);
+          }}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shrink-0 cursor-pointer shadow-md active:scale-95 ${
             activeView === 'flight-simulator'
-              ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-glow-cyan'
-              : 'bg-slate-800/90 text-cyan-400 border-cyan-500/30 hover:bg-slate-700'
+              ? 'bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-glow-cyan'
+              : 'bg-slate-800/90 text-cyan-400 border-cyan-500/40 hover:bg-slate-700 hover:border-cyan-300'
           }`}
           title="Fly 3D drone using your phone as joystick controller"
         >
-          <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden xl:inline">Phone Joystick</span>
+          <Smartphone className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+          <span className="font-bold">Phone Joystick</span>
         </button>
 
         {/* Daytime / Nighttime Atmosphere Switch */}

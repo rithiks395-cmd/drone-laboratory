@@ -29,6 +29,7 @@ export const MobilePairingModal: React.FC<MobilePairingModalProps> = ({
 }) => {
   // Determine initial host IP
   const getInitialHost = () => {
+    if (typeof window === 'undefined') return 'localhost';
     const hostname = window.location.hostname;
     // If hosted on a public domain (e.g. Vercel, Netlify, custom domain)
     if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1' && !hostname.startsWith('192.168.') && !hostname.startsWith('10.')) {
@@ -36,13 +37,15 @@ export const MobilePairingModal: React.FC<MobilePairingModalProps> = ({
     }
 
     const saved = localStorage.getItem('uav_laptop_wifi_ip');
-    if (saved && saved !== '192.168.1.3') return saved;
+    if (saved) return saved;
 
-    // If opened on localhost, default to the laptop's live Wi-Fi IP (10.223.59.30)
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || !hostname) {
-      return '10.223.59.30';
+    // If already connected via local network IP directly
+    if (hostname && hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      return hostname;
     }
-    return hostname;
+
+    // Default to the user's active local Wi-Fi IP
+    return '192.168.1.3';
   };
 
   const isPublicDomain = typeof window !== 'undefined' && 
@@ -52,7 +55,10 @@ export const MobilePairingModal: React.FC<MobilePairingModalProps> = ({
     !window.location.hostname.startsWith('10.');
 
   const [hostIp, setHostIp] = useState<string>(getInitialHost);
-  const [port, setPort] = useState<string>(window.location.port || '');
+  const [port, setPort] = useState<string>(() => {
+    if (typeof window === 'undefined') return '3000';
+    return window.location.port || '3000';
+  });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -175,18 +181,27 @@ export const MobilePairingModal: React.FC<MobilePairingModalProps> = ({
               <span className="truncate">{controllerUrl}</span>
             </div>
 
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center gap-2 pt-1">
               <button
                 onClick={handleCopy}
-                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-mono transition-colors active:scale-95 shadow-glow-cyan"
+                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-mono transition-colors active:scale-95 shadow-glow-cyan cursor-pointer"
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
                 <span>{copied ? 'Copied Link!' : 'Copy Controller Link'}</span>
               </button>
 
               <button
+                onClick={() => window.open(controllerUrl, '_blank', 'width=850,height=480')}
+                className="flex items-center gap-1 py-1.5 px-3 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-mono border border-blue-400 transition-all active:scale-95 cursor-pointer shadow-md"
+                title="Open Phone Controller in a popup window to test side-by-side"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Open in New Window</span>
+              </button>
+
+              <button
                 onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-1 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700 transition-colors"
+                className="flex items-center gap-1 py-1.5 px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-mono border border-slate-700 transition-colors cursor-pointer"
                 title="Change Laptop Wi-Fi IP address"
               >
                 <Settings2 className="w-3.5 h-3.5 text-cyan-400" />
@@ -220,7 +235,7 @@ export const MobilePairingModal: React.FC<MobilePairingModalProps> = ({
                     type="text"
                     value={port}
                     onChange={(e) => setPort(e.target.value.trim())}
-                    placeholder="5173"
+                    placeholder="3000"
                     className="w-20 bg-slate-900 border border-cyan-500/40 rounded px-2.5 py-1.5 text-xs font-mono text-cyan-300 focus:outline-none focus:border-cyan-400"
                   />
                 </div>
@@ -230,28 +245,22 @@ export const MobilePairingModal: React.FC<MobilePairingModalProps> = ({
               <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px] font-mono">
                 <span className="text-slate-400">Presets:</span>
                 <button
-                  onClick={() => handleIpChange('10.223.59.30')}
-                  className="px-2 py-0.5 rounded bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border border-cyan-400 font-bold"
-                >
-                  10.223.59.30 (Active Wi-Fi)
-                </button>
-                <button
                   onClick={() => handleIpChange('192.168.1.3')}
-                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700"
+                  className="px-2 py-0.5 rounded bg-cyan-950/90 hover:bg-cyan-900 text-cyan-300 border border-cyan-400 font-bold cursor-pointer"
                 >
-                  192.168.1.3
+                  192.168.1.3 (Current Wi-Fi)
                 </button>
                 <button
                   onClick={() => handleIpChange('192.168.56.1')}
-                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700"
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 cursor-pointer"
                 >
                   192.168.56.1
                 </button>
                 <button
                   onClick={() => handleIpChange(window.location.hostname)}
-                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700"
+                  className="px-2 py-0.5 rounded bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-700 cursor-pointer"
                 >
-                  Current ({window.location.hostname})
+                  Current Host ({window.location.hostname})
                 </button>
               </div>
 

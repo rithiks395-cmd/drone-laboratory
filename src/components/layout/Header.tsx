@@ -17,7 +17,8 @@ import {
   Wrench,
   Home,
   LogOut,
-  ShieldCheck
+  ShieldCheck,
+  FileDown
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -222,6 +223,17 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
           <FileText className="w-3.5 h-3.5 shrink-0" />
           <span className="hidden lg:inline">Record</span>
         </button>
+
+        {/* Whole Project Word Documentation (.docx) Download Button */}
+        <a
+          href="/Aero_Space_Simulator_Project_Documentation.docx"
+          download="Aero_Space_Simulator_Project_Documentation.docx"
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-semibold shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/60 transition-all active:scale-95 cursor-pointer shrink-0"
+          title="Download Whole Project Documentation in Word (.docx) Format"
+        >
+          <FileDown className="w-3.5 h-3.5 shrink-0 text-emerald-100" />
+          <span className="hidden lg:inline">Word Doc</span>
+        </a>
 
         {/* Fullscreen Icon Button */}
         <button

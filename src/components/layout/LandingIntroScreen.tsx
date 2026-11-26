@@ -12,7 +12,8 @@ import {
   Compass,
   Rocket,
   UserPlus,
-  LogIn
+  LogIn,
+  FileDown
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -210,6 +211,17 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({
             <ShieldCheck className="w-4 h-4 text-amber-400" />
             <span>ADMIN PORTAL</span>
           </button>
+
+          {/* WHOLE PROJECT WORD DOCUMENTATION DOWNLOAD BUTTON */}
+          <a
+            href="/Aero_Space_Simulator_Project_Documentation.docx"
+            download="Aero_Space_Simulator_Project_Documentation.docx"
+            className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-emerald-600/30 hover:bg-emerald-500/40 text-emerald-300 border-2 border-emerald-400/60 hover:border-emerald-300 font-bold font-mono text-xs sm:text-sm shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer active:scale-95 w-full sm:w-auto"
+            title="Download Whole Project Documentation in Microsoft Word (.docx) Format"
+          >
+            <FileDown className="w-4 h-4 text-emerald-400" />
+            <span>WORD DOC (.DOCX)</span>
+          </a>
         </div>
 
         {/* Bottom Helper Note for New Users */}

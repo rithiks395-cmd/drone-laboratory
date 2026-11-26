@@ -98,7 +98,16 @@ export interface SavedProject {
   savedAt: string;
   completedSteps: number[];
   notes?: string;
+  userId?: string;
+  userEmail?: string;
+  userName?: string;
 }
+
+const getProjectStorageKeyForUser = (userEmailOrId?: string) => {
+  if (!userEmailOrId) return 'drone_lab_saved_projects_guest';
+  const clean = userEmailOrId.trim().toLowerCase().replace(/[^a-z0-9]/g, '_');
+  return `drone_lab_saved_projects_user_${clean}`;
+};
 
 const STORAGE_KEY = 'drone_lab_saved_projects';
 
@@ -148,8 +157,14 @@ const ComponentVisualBadge: React.FC<{ visualType: string; isInstalled: boolean 
 
 export const HardwareWorkbenchView: React.FC = () => {
   const { setSelectedReportExpId, setIsRecordModalOpen, captureScreenshot, atmosphereTheme, setActiveView } = useLab();
+  const { currentUser } = useAuth();
   const workbenchRef = useRef<HTMLDivElement>(null);
   const orbitControlsRef = useRef<any>(null);
+
+  // Dedicated storage key strictly isolated per logged-in user account
+  const userProjectKey = useMemo(() => {
+    return getProjectStorageKeyForUser(currentUser?.email || currentUser?.id);
+  }, [currentUser?.email, currentUser?.id]);
 
   // Big Screen Fullscreen Workbench
   const [isFullscreenWorkbench, setIsFullscreenWorkbench] = useState<boolean>(false);
@@ -578,25 +593,51 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
   ]);
 
-  // Load saved projects on mount
+  // Load saved projects whenever the active logged-in user changes (Strictly private per account)
   useEffect(() => {
     try {
-      const data = localStorage.getItem(STORAGE_KEY);
+      const data = localStorage.getItem(userProjectKey);
       if (data) {
         setSavedProjects(JSON.parse(data));
+      } else {
+        // Also check if any legacy projects belong specifically to this user
+        const legacyData = localStorage.getItem('drone_lab_saved_projects');
+        if (legacyData && currentUser?.email) {
+          try {
+            const parsed: SavedProject[] = JSON.parse(legacyData);
+            const userOwned = parsed.filter(
+              (p) => p.userEmail === currentUser.email || p.userId === currentUser.id
+            );
+            if (userOwned.length > 0) {
+              setSavedProjects(userOwned);
+              localStorage.setItem(userProjectKey, JSON.stringify(userOwned));
+              return;
+            }
+          } catch (err) {}
+        }
+        setSavedProjects([]);
       }
     } catch (e) {
-      console.error('Failed to load saved projects', e);
+      console.error('Failed to load user-specific saved projects', e);
+      setSavedProjects([]);
     }
-  }, []);
+  }, [userProjectKey, currentUser?.email, currentUser?.id]);
 
-  // Save projects to localStorage
+  // Reset active workbench session when user logs out or switches accounts so data is never shared
+  useEffect(() => {
+    setActiveProjectId('');
+    setHasActiveProject(false);
+    setCompletedSteps({});
+    setComponents((prev) => prev.map((c) => ({ ...c, installed: false })));
+  }, [currentUser?.email, currentUser?.id]);
+
+  // Save projects to user-isolated localStorage
   const persistProjects = (projects: SavedProject[]) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      localStorage.setItem(userProjectKey, JSON.stringify(projects));
       setSavedProjects(projects);
     } catch (e) {
-      console.error('Failed to save project', e);
+      console.error('Failed to save user-specific project', e);
     }
   };
 
@@ -1294,6 +1335,9 @@ export const HardwareWorkbenchView: React.FC = () => {
       expNo: tempSelectedExp,
       savedAt: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
       completedSteps: [],
+      userId: currentUser?.id || 'guest',
+      userEmail: currentUser?.email || 'guest@psg.aero',
+      userName: currentUser?.name || 'Guest User',
     };
 
     const updated = [newProject, ...savedProjects];
@@ -1585,9 +1629,16 @@ export const HardwareWorkbenchView: React.FC = () => {
               <div className="flex items-center justify-between border-b border-amber-500/30 pb-3 mb-4">
                 <div className="flex items-center gap-2">
                   <FolderPlus className="w-5 h-5 text-amber-400" />
-                  <h3 className="text-base font-black text-white">
-                    CREATE NEW ASSEMBLY PROJECT
-                  </h3>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      CREATE NEW ASSEMBLY PROJECT
+                    </h3>
+                    <div className="text-[11px] text-amber-300 flex items-center gap-1.5 font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                      <span>Account: {currentUser?.name || 'User'} ({currentUser?.email || 'Individual Account'})</span>
+                      <span className="text-slate-400">• Private to your account</span>
+                    </div>
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowNewProjectModal(false)}
@@ -1679,9 +1730,16 @@ export const HardwareWorkbenchView: React.FC = () => {
               <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4">
                 <div className="flex items-center gap-2">
                   <Folder className="w-5 h-5 text-cyan-400" />
-                  <h3 className="text-base font-black text-white">
-                    SAVED EXPERIMENT PROJECT FOLDERS
-                  </h3>
+                  <div>
+                    <h3 className="text-base font-black text-white">
+                      SAVED EXPERIMENT PROJECT FOLDERS
+                    </h3>
+                    <div className="text-[11px] text-cyan-300 flex items-center gap-1.5 font-bold">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]"></span>
+                      <span>Account: {currentUser?.name || 'User'} ({currentUser?.email || 'Individual Account'})</span>
+                      <span className="text-slate-400">• Private &amp; Secured</span>
+                    </div>
+                  </div>
                 </div>
                 <button
                   onClick={() => setShowFolderBrowserModal(false)}
@@ -1691,46 +1749,56 @@ export const HardwareWorkbenchView: React.FC = () => {
                 </button>
               </div>
 
-              <div className="space-y-2.5 max-h-72 overflow-y-auto p-1 custom-scrollbar mb-4">
-                {savedProjects.map((proj) => (
-                  <div
-                    key={proj.id}
-                    onClick={() => handleOpenSavedProject(proj)}
-                    className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-400 transition-all flex items-center justify-between cursor-pointer group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
-                        <Folder className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white group-hover:text-cyan-300">
-                          {proj.name}
-                        </div>
-                        <div className="text-[10px] text-slate-400 flex items-center gap-2">
-                          <span>Folder: <strong>{proj.folderName}</strong></span>
-                          <span>•</span>
-                          <span className="text-amber-300 font-bold">EX {proj.expNo}</span>
-                          <span>•</span>
-                          <span>{proj.savedAt}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => handleDeleteProject(proj.id, e)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
-                        title="Delete saved project"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                      <span className="px-2.5 py-1 rounded-lg bg-cyan-600 text-white text-[10px] font-bold group-hover:bg-cyan-500">
-                        Open
-                      </span>
-                    </div>
+              {savedProjects.length === 0 ? (
+                <div className="py-8 px-4 text-center rounded-xl bg-slate-900/60 border border-slate-800/80 mb-4">
+                  <FolderPlus className="w-10 h-10 text-cyan-400/60 mx-auto mb-2" />
+                  <div className="text-sm font-bold text-slate-200">No project folders saved in your account yet</div>
+                  <div className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    Folders and projects you create are completely private and only accessible inside your account (<strong className="text-cyan-300">{currentUser?.email || 'Current Account'}</strong>).
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                <div className="space-y-2.5 max-h-72 overflow-y-auto p-1 custom-scrollbar mb-4">
+                  {savedProjects.map((proj) => (
+                    <div
+                      key={proj.id}
+                      onClick={() => handleOpenSavedProject(proj)}
+                      className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-400 transition-all flex items-center justify-between cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                          <Folder className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-white group-hover:text-cyan-300">
+                            {proj.name}
+                          </div>
+                          <div className="text-[10px] text-slate-400 flex items-center gap-2">
+                            <span>Folder: <strong>{proj.folderName}</strong></span>
+                            <span>•</span>
+                            <span className="text-amber-300 font-bold">EX {proj.expNo}</span>
+                            <span>•</span>
+                            <span>{proj.savedAt}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => handleDeleteProject(proj.id, e)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
+                          title="Delete saved project"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        <span className="px-2.5 py-1 rounded-lg bg-cyan-600 text-white text-[10px] font-bold group-hover:bg-cyan-500">
+                          Open
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <button
                 onClick={() => {

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
 import { ExperimentInfo, ActiveView, LabRecordData } from '../types/experiments';
 import { EXPERIMENTS_LIST } from '../utils/experimentsData';
+import { useAuth } from './AuthContext';
 import html2canvas from 'html2canvas';
 
 interface LabContextType {
@@ -48,43 +49,63 @@ const STORAGE_KEY_STUDENT = 'uav_virtuallab_student';
 const STORAGE_KEY_THEME = 'uav_virtuallab_theme';
 
 export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [experiments, setExperiments] = useState<ExperimentInfo[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_EXPERIMENTS);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return EXPERIMENTS_LIST.map((exp) => {
-          const found = parsed.find((p: any) => p.id === exp.id);
-          return found
-            ? { ...exp, completed: found.completed, score: found.score, lastSimulated: found.lastSimulated }
-            : exp;
-        });
-      } catch (e) {
-        console.error('Error loading saved experiments', e);
-      }
-    }
-    return EXPERIMENTS_LIST;
-  });
+  const { currentUser } = useAuth();
 
+  // Storage keys strictly scoped per individual account
+  const getUserScopeKey = (base: string) => {
+    if (!currentUser) return `${base}_guest`;
+    const clean = currentUser.id ? currentUser.id.toLowerCase() : currentUser.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    return `${base}_user_${clean}`;
+  };
+
+  const currentExpKey = useMemo(() => getUserScopeKey(STORAGE_KEY_EXPERIMENTS), [currentUser?.id, currentUser?.email]);
+  const currentRecordsKey = useMemo(() => getUserScopeKey(STORAGE_KEY_RECORDS), [currentUser?.id, currentUser?.email]);
+
+  const [experiments, setExperiments] = useState<ExperimentInfo[]>(EXPERIMENTS_LIST);
   const [activeView, setActiveView] = useState<ActiveView>('dashboard');
-  const [labRecords, setLabRecords] = useState<Record<number, LabRecordData>>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY_RECORDS);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error('Error loading saved lab records', e);
-      }
-    }
-    return {};
-  });
+  const [labRecords, setLabRecords] = useState<Record<number, LabRecordData>>({});
+  const [studentName, setStudentName] = useState<string>('Aerospace Student');
+  const [rollNumber, setRollNumber] = useState<string>('UAV-2026-001');
 
-  const [studentName, setStudentName] = useState<string>(() => {
-    return localStorage.getItem(`${STORAGE_KEY_STUDENT}_name`) || 'Aerospace Student';
-  });
-  const [rollNumber, setRollNumber] = useState<string>(() => {
-    return localStorage.getItem(`${STORAGE_KEY_STUDENT}_roll`) || 'UAV-2026-001';
-  });
+  // Load account-specific progress and records whenever the logged-in user changes
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(currentExpKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setExperiments(
+          EXPERIMENTS_LIST.map((exp) => {
+            const found = parsed.find((p: any) => p.id === exp.id);
+            return found
+              ? { ...exp, completed: found.completed, score: found.score, lastSimulated: found.lastSimulated }
+              : exp;
+          })
+        );
+      } else {
+        setExperiments(EXPERIMENTS_LIST);
+      }
+    } catch (e) {
+      setExperiments(EXPERIMENTS_LIST);
+    }
+
+    try {
+      const savedRec = localStorage.getItem(currentRecordsKey);
+      if (savedRec) {
+        setLabRecords(JSON.parse(savedRec));
+      } else {
+        setLabRecords({});
+      }
+    } catch (e) {
+      setLabRecords({});
+    }
+
+    if (currentUser?.name) {
+      setStudentName(currentUser.name);
+    }
+    if (currentUser?.rollNumber) {
+      setRollNumber(currentUser.rollNumber);
+    }
+  }, [currentExpKey, currentRecordsKey, currentUser]);
 
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isRecordModalOpen, setIsRecordModalOpen] = useState<boolean>(false);
@@ -101,12 +122,12 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_EXPERIMENTS, JSON.stringify(experiments));
-  }, [experiments]);
+    localStorage.setItem(currentExpKey, JSON.stringify(experiments));
+  }, [experiments, currentExpKey]);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY_RECORDS, JSON.stringify(labRecords));
-  }, [labRecords]);
+    localStorage.setItem(currentRecordsKey, JSON.stringify(labRecords));
+  }, [labRecords, currentRecordsKey]);
 
   useEffect(() => {
     localStorage.setItem(`${STORAGE_KEY_STUDENT}_name`, studentName);
@@ -146,11 +167,11 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   };
 
   const resetAllProgress = () => {
-    if (window.confirm('Reset all virtual laboratory progress and records?')) {
+    if (window.confirm('Reset all virtual laboratory progress and records for this account?')) {
       setExperiments(EXPERIMENTS_LIST);
       setLabRecords({});
-      localStorage.removeItem(STORAGE_KEY_EXPERIMENTS);
-      localStorage.removeItem(STORAGE_KEY_RECORDS);
+      localStorage.removeItem(currentExpKey);
+      localStorage.removeItem(currentRecordsKey);
     }
   };
 

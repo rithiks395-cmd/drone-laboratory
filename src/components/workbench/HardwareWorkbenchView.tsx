@@ -35,7 +35,13 @@ import {
   Trash2,
   Activity,
   Sliders,
-  Compass
+  Compass,
+  Zap,
+  Gauge,
+  Radio,
+  Battery,
+  Scale,
+  Wind
 } from 'lucide-react';
 
 // 3D Models
@@ -216,9 +222,23 @@ export const HardwareWorkbenchView: React.FC = () => {
   } | null>(null);
 
   // Live Experiment Test Controls & Monitor
-  const [testThrottle, setTestThrottle] = useState<number>(0);
+  const [testThrottle, setTestThrottle] = useState<number>(70);
   const [isTestRunning, setIsTestRunning] = useState<boolean>(false);
   const [activeServoAngle, setActiveServoAngle] = useState<number>(45);
+
+  // Dedicated syllabus states for Experiments 1 to 10
+  const [testPayloadG, setTestPayloadG] = useState<number>(250); // Exp 1: Mission Payload (0 - 800g)
+  const [testAirspeedMs, setTestAirspeedMs] = useState<number>(16.5); // Exp 2: Fixed Wing Airspeed (10 - 30 m/s)
+  const [testServoStick, setTestServoStick] = useState<number>(0); // Exp 4: Servo Stick (-45° to +45°)
+  const [testSubTrim, setTestSubTrim] = useState<number>(0); // Exp 4: Digital Sub-trim (-20 to +20 µs)
+  const [testLiPoSoC, setTestLiPoSoC] = useState<number>(88); // Exp 5: LiPo SoC (10% to 100%)
+  const [testRFChannel, setTestRFChannel] = useState<number>(1); // Exp 6: RF Channel (1 to 6)
+  const [isPropBalanced, setIsPropBalanced] = useState<boolean>(true); // Exp 7: Dynamic Balance Toggle
+  const [testBatteryShiftMm, setTestBatteryShiftMm] = useState<number>(0); // Exp 8: Longitudinal CG shift (-40 to +40 mm)
+  const [testQuadThrottle, setTestQuadThrottle] = useState<number>(42); // Exp 9: Multirotor Collective Throttle (0 to 100%)
+  const [testPGain, setTestPGain] = useState<number>(55); // Exp 10: KK2.1.5 Roll/Pitch P-Gain (30 to 90)
+  const [testIGain, setTestIGain] = useState<number>(30); // Exp 10: KK2.1.5 Roll/Pitch I-Gain (10 to 60)
+  const [testSelfLevel, setTestSelfLevel] = useState<boolean>(true); // Exp 10: KK2.1.5 Self-Level Mode
 
   // Output Results Modal after correct execution
   const [showOutputModal, setShowOutputModal] = useState<boolean>(false);
@@ -1365,16 +1385,83 @@ export const HardwareWorkbenchView: React.FC = () => {
   const handleRunAndExecute = () => {
     setIsTestRunning(true);
     setTestThrottle(70);
+    if (selectedExpNo === 1) setTestPayloadG(250);
+    if (selectedExpNo === 2) setTestAirspeedMs(16.5);
+    if (selectedExpNo === 3) setTestThrottle(70);
+    if (selectedExpNo === 4) { setTestServoStick(0); setTestSubTrim(0); }
+    if (selectedExpNo === 5) setTestLiPoSoC(88);
+    if (selectedExpNo === 6) setTestRFChannel(1);
+    if (selectedExpNo === 7) setIsPropBalanced(true);
+    if (selectedExpNo === 8) setTestBatteryShiftMm(0);
+    if (selectedExpNo === 9) setTestQuadThrottle(42);
+    if (selectedExpNo === 10) { setTestPGain(55); setTestIGain(30); setTestSelfLevel(true); }
     setShowOutputModal(true);
   };
 
-  // Dynamic Test Calculations
-  const testRPM = Math.round(testThrottle * 98);
-  const testThrustG = Math.round(testThrottle * 8.4);
-  const testVoltageV = (11.1 - (testThrottle * 0.008)).toFixed(2);
-  const testCurrentA = (testThrottle * 0.12).toFixed(2);
-  const testPowerW = (parseFloat(testVoltageV) * parseFloat(testCurrentA)).toFixed(1);
-  const testEfficiencyGW = parseFloat(testPowerW) > 0 ? (testThrustG / parseFloat(testPowerW)).toFixed(2) : '0.00';
+  // Dynamic Test Calculations & Syllabus Parameters
+  // EXP 1: Payload and Weight Estimation
+  const exp1EmptyWeight = 724;
+  const exp1BatteryWeight = 185;
+  const exp1PayloadWeight = testPayloadG;
+  const exp1MTOW = exp1EmptyWeight + exp1BatteryWeight + exp1PayloadWeight;
+  const exp1TotalThrust = 3360; // 4 x 840g
+  const exp1TWR = (exp1TotalThrust / exp1MTOW).toFixed(2);
+  const exp1PayloadFraction = ((exp1PayloadWeight / exp1MTOW) * 100).toFixed(1);
+  const exp1HoverThrottle = ((exp1MTOW / exp1TotalThrust) * 100).toFixed(1);
+
+  // EXP 2: Fixed Wing Assembly & Aerodynamics
+  const exp2Airspeed = testAirspeedMs;
+  const exp2WingArea = 0.216; // 1.2m span x 0.18m chord
+  const exp2CL = 0.52;
+  const exp2CD = 0.042;
+  const exp2DynPressure = 0.5 * 1.225 * exp2Airspeed * exp2Airspeed;
+  const exp2Lift = (exp2DynPressure * exp2WingArea * exp2CL).toFixed(2);
+  const exp2Drag = (exp2DynPressure * exp2WingArea * exp2CD).toFixed(2);
+  const exp2GlideRatio = (exp2CL / exp2CD).toFixed(2);
+
+  // EXP 3: Motor & ESC Thrust Calibration
+  const exp3Thrust = Math.round(testThrottle * 8.5);
+  const exp3RPM = Math.round(testThrottle * 98);
+  const exp3Voltage = (11.1 - testThrottle * 0.008).toFixed(2);
+  const exp3Current = (testThrottle * 0.12).toFixed(2);
+  const exp3Power = (parseFloat(exp3Voltage) * parseFloat(exp3Current)).toFixed(1);
+  const exp3Efficiency = parseFloat(exp3Power) > 0 ? (exp3Thrust / parseFloat(exp3Power)).toFixed(2) : '0.00';
+
+  // EXP 4: UAV Control & Trimming
+  const exp4PulseWidth = 1500 + Math.round(testServoStick * 11.11) + testSubTrim;
+  const exp4Deflection = (testServoStick + testSubTrim * 0.09).toFixed(1);
+  const exp4Travel = ((testServoStick / 45) * 12.5).toFixed(1);
+
+  // EXP 5: LiPo Battery Testing & Balancing
+  const exp5NomCell = (3.30 + (testLiPoSoC / 100) * 0.90);
+  const exp5Cell1 = (exp5NomCell + 0.003).toFixed(3);
+  const exp5Cell2 = (exp5NomCell - 0.004).toFixed(3);
+  const exp5Cell3 = (exp5NomCell + 0.001).toFixed(3);
+  const exp5PackVoltage = (parseFloat(exp5Cell1) + parseFloat(exp5Cell2) + parseFloat(exp5Cell3)).toFixed(2);
+  const exp5MaxDischarge = (3.3 * 25).toFixed(1);
+
+  // EXP 7: Propeller Balancing
+  const exp7Vrms = isPropBalanced ? '0.38' : '4.82';
+  const exp7GForce = isPropBalanced ? '0.14' : '1.85';
+  const exp7Imbalance = isPropBalanced ? '0.0' : '18.4';
+  const exp7Runout = isPropBalanced ? '0.08' : '1.42';
+
+  // EXP 8: Longitudinal Center of Gravity (CG)
+  const exp8XCG = (68.4 + testBatteryShiftMm * 0.22).toFixed(1);
+  const exp8CGMac = ((parseFloat(exp8XCG) / 180) * 100).toFixed(1);
+  const exp8SM = (((91.2 - parseFloat(exp8XCG)) / 180) * 100).toFixed(1);
+
+  // EXP 9: Quadcopter-X Assembly Equilibrium
+  const exp9Thrust = Math.round(testQuadThrottle * 34.0);
+  const exp9PWM = 1000 + Math.round(testQuadThrottle * 10);
+
+  // General legacy telemetry aliases for backwards compatibility
+  const testRPM = exp3RPM;
+  const testThrustG = exp3Thrust;
+  const testVoltageV = exp3Voltage;
+  const testCurrentA = exp3Current;
+  const testPowerW = exp3Power;
+  const testEfficiencyGW = exp3Efficiency;
 
   // Screenshot capture for workspace/modal
   const handleCaptureWorkspace = async () => {
@@ -2436,77 +2523,1220 @@ export const HardwareWorkbenchView: React.FC = () => {
 
       {/* 5. FINAL OUTPUT MONITOR & OBSERVATION RECORD MODAL (When Experiment Executes) */}
       {showOutputModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="relative max-w-3xl w-full rounded-2xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-6 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.5)] font-sans">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative max-w-4xl w-full max-h-[92vh] flex flex-col rounded-2xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-5 sm:p-6 shadow-[0_0_60px_rgba(6,182,212,0.5)] font-sans text-slate-100">
             
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4 font-mono">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400 animate-pulse" />
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4 font-mono shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/50 flex items-center justify-center shrink-0">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 animate-pulse" />
+                </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-white">
-                    EX {selectedExpNo} LIVE EXPERIMENT MONITOR & OBSERVATION RECORD
-                  </h3>
-                  <p className="text-xs text-slate-400 font-mono">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/50 text-cyan-300 text-[10px] font-bold">
+                      EX {selectedExpNo} EXECUTION TELEMETRY
+                    </span>
+                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                      SYSTEM ONLINE
+                    </span>
+                  </div>
+                  <h3 className="text-sm sm:text-base font-bold text-white mt-0.5">
                     {activeGuide.title}
-                  </p>
+                  </h3>
                 </div>
               </div>
               <button
                 onClick={() => setShowOutputModal(false)}
-                className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer"
+                className="text-slate-400 hover:text-white px-2.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs font-mono hover:border-slate-700 transition-colors cursor-pointer"
               >
                 ✕ Close
               </button>
             </div>
 
-            {/* Results Grid with Monitored Values */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono mb-4">
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
-                <div className="text-slate-400 text-[10px]">PEAK THRUST:</div>
-                <div className="text-xl font-black text-cyan-300">{testThrustG} g</div>
-                <div className="text-[10px] text-emerald-400 mt-1">✓ Nominal Thrust</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
-                <div className="text-slate-400 text-[10px]">ROTATIONAL SPEED:</div>
-                <div className="text-xl font-black text-emerald-400">{testRPM} RPM</div>
-                <div className="text-[10px] text-cyan-400 mt-1">Optical Laser Locked</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
-                <div className="text-slate-400 text-[10px]">CURRENT DRAW:</div>
-                <div className="text-xl font-black text-amber-300">{testCurrentA} A</div>
-                <div className="text-[10px] text-slate-400 mt-1">@ {testVoltageV}V DC</div>
-              </div>
-              <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
-                <div className="text-slate-400 text-[10px]">POWER EFFICIENCY:</div>
-                <div className="text-xl font-black text-purple-300">{testEfficiencyGW} g/W</div>
-                <div className="text-[10px] text-purple-400 mt-1">Bus: {testPowerW} W</div>
-              </div>
+            {/* Modal Scrollable Body */}
+            <div className="overflow-y-auto pr-1 space-y-4 font-mono text-xs">
+
+              {/* ========================================================================= */}
+              {/* EXP 1: PAYLOAD AND WEIGHT ESTIMATION OF UAV */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 1 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Scale className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>ALL-UP WEIGHT (AUW/MTOW)</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp1MTOW} g</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Empty: {exp1EmptyWeight}g + LiPo: {exp1BatteryWeight}g</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>THRUST-TO-WEIGHT RATIO</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">{exp1TWR} : 1</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">✓ Safe Hover TWR &gt; 2.0</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>COMBINED 4x THRUST</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">{exp1TotalThrust} g</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Hover Throttle: {exp1HoverThrottle}%</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Layers className="w-3.5 h-3.5 text-purple-400" />
+                        <span>PAYLOAD FRACTION</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">{exp1PayloadFraction}%</div>
+                      <div className="text-[10px] text-purple-400 mt-1">Max Allowable: &lt; 35% MTOW</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        MISSION PAYLOAD WEIGHT CONTROL:
+                      </span>
+                      <span className="text-cyan-300 font-black">{testPayloadG} grams</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={800}
+                      step={10}
+                      value={testPayloadG}
+                      onChange={(e) => setTestPayloadG(parseInt(e.target.value, 10))}
+                      className="w-full accent-cyan-400 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Observation &amp; Weight Matrix (Analytical Breakdown)</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Sub-Assembly Category</th>
+                            <th className="py-1 px-2">Component Breakdown</th>
+                            <th className="py-1 px-2 text-right">Mass (g)</th>
+                            <th className="py-1 px-2 text-right">% of MTOW</th>
+                            <th className="py-1 px-2 text-center">Engineering Margin</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Airframe Structure</td>
+                            <td className="py-1.5 px-2">F450 Glass-Fiber PCB Center Plates + 4x PA66 Arms</td>
+                            <td className="py-1.5 px-2 text-right">390 g</td>
+                            <td className="py-1.5 px-2 text-right">{((390 / exp1MTOW) * 100).toFixed(1)}%</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Structural Safety Factor 2.5</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Propulsion Train</td>
+                            <td className="py-1.5 px-2">4x A2212 920KV BLDC + 4x 30A ESCs + 4x 1045 Props</td>
+                            <td className="py-1.5 px-2 text-right">352 g</td>
+                            <td className="py-1.5 px-2 text-right">{((352 / exp1MTOW) * 100).toFixed(1)}%</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Total Thrust: 3360 g</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Flight Avionics</td>
+                            <td className="py-1.5 px-2">KK2.1.5 Flight Controller + FS-iA6B Rx + Power Wiring</td>
+                            <td className="py-1.5 px-2 text-right">82 g</td>
+                            <td className="py-1.5 px-2 text-right">{((82 / exp1MTOW) * 100).toFixed(1)}%</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Low Mass Avionics Bus</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Energy Storage</td>
+                            <td className="py-1.5 px-2">3S 3300mAh LiPo Battery Pack (11.1V Nominal)</td>
+                            <td className="py-1.5 px-2 text-right">185 g</td>
+                            <td className="py-1.5 px-2 text-right">{((185 / exp1MTOW) * 100).toFixed(1)}%</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">14.8 Min Hover Time</td>
+                          </tr>
+                          <tr className="bg-cyan-950/20 font-bold">
+                            <td className="py-1.5 px-2 text-amber-300">Mission Payload</td>
+                            <td className="py-1.5 px-2">Sensors / 2-Axis Gimbal &amp; HD Camera Pod</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">{testPayloadG} g</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">{exp1PayloadFraction}%</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Within Airframe Envelope</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 2: FIXED WING UAV FRAME AND AVIONICS COMPONENTS ASSEMBLING */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 2 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Wind className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>GLIDE RATIO (L / D)</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp2GlideRatio} : 1</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">✓ High Aero Efficiency</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>DYNAMIC LIFT FORCE</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">{exp2Lift} N</div>
+                      <div className="text-[10px] text-slate-400 mt-1">@ {testAirspeedMs} m/s Airspeed</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-amber-400" />
+                        <span>TOTAL DRAG FORCE</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">{exp2Drag} N</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Cd = 0.042 (Parasite + Induced)</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Gauge className="w-3.5 h-3.5 text-purple-400" />
+                        <span>STALL SPEED (V_stall)</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">9.20 m/s</div>
+                      <div className="text-[10px] text-purple-400 mt-1">Cruise: 16.5 m/s (59.4 km/h)</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        AIRSPEED / WIND TUNNEL VELOCITY:
+                      </span>
+                      <span className="text-cyan-300 font-black">{testAirspeedMs} m/s ({(testAirspeedMs * 3.6).toFixed(1)} km/h)</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={30}
+                      step={0.5}
+                      value={testAirspeedMs}
+                      onChange={(e) => setTestAirspeedMs(parseFloat(e.target.value))}
+                      className="w-full accent-cyan-400 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Airframe Geometry &amp; Aerodynamic Parameters</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Design Parameter</th>
+                            <th className="py-1 px-2">Specification / Formula</th>
+                            <th className="py-1 px-2 text-right">Value</th>
+                            <th className="py-1 px-2 text-center">Status / Verification</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Airframe Wingspan (b)</td>
+                            <td className="py-1.5 px-2">Direct span tip-to-tip</td>
+                            <td className="py-1.5 px-2 text-right">1200 mm (1.20 m)</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Carbon Spar Aligned</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Wing Area (S) &amp; Aspect Ratio</td>
+                            <td className="py-1.5 px-2">S = b × c ; AR = b² / S</td>
+                            <td className="py-1.5 px-2 text-right">0.216 m² / AR = 6.67</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Optimal Glide Geometry</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Airfoil Section</td>
+                            <td className="py-1.5 px-2">Clark-Y Cambered High-Lift Airfoil</td>
+                            <td className="py-1.5 px-2 text-right">CL_max: 1.28 | CL_cruise: 0.52</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Smooth Aerodynamic Skin</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Control Surface Linkages</td>
+                            <td className="py-1.5 px-2">Ailerons (±15°), Elevator (±20°), Rudder (±25°)</td>
+                            <td className="py-1.5 px-2 text-right">Zero Slop Rigging</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Servos Centered</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Avionics Thrust Line</td>
+                            <td className="py-1.5 px-2">Firewall Down-Thrust: 2° Down / 1.5° Right</td>
+                            <td className="py-1.5 px-2 text-right">1450g Static Thrust</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Counter-Torque Aligned</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 3: CALIBRATION AND ESTIMATION OF MOTOR'S THRUST */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 3 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Scale className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>MEASURED LOAD CELL THRUST</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp3Thrust} g</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">±1g Precision Strain Gauge</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>OPTICAL TACHOMETER SPEED</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">{exp3RPM} RPM</div>
+                      <div className="text-[10px] text-cyan-400 mt-1">Laser Reflector Synced</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>CURRENT &amp; BUS VOLTAGE</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">{exp3Current} A</div>
+                      <div className="text-[10px] text-slate-400 mt-1">@ {exp3Voltage} V DC Bus</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Gauge className="w-3.5 h-3.5 text-purple-400" />
+                        <span>MOTOR EFFICIENCY (g / W)</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">{exp3Efficiency} g/W</div>
+                      <div className="text-[10px] text-purple-400 mt-1">Electrical Power: {exp3Power} W</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        ESC PWM THROTTLE SWEEP:
+                      </span>
+                      <span className="text-cyan-300 font-black">{testThrottle}% ({1000 + testThrottle * 10} µs)</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={testThrottle}
+                      onChange={(e) => setTestThrottle(parseInt(e.target.value, 10))}
+                      className="w-full accent-cyan-400 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Dynamometer Calibration Curve &amp; Tabulation</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Throttle (%)</th>
+                            <th className="py-1 px-2">PWM (µs)</th>
+                            <th className="py-1 px-2 text-right">Optical RPM</th>
+                            <th className="py-1 px-2 text-right">Thrust (g)</th>
+                            <th className="py-1 px-2 text-right">Current (A)</th>
+                            <th className="py-1 px-2 text-right">Power (W)</th>
+                            <th className="py-1 px-2 text-right">Efficiency (g/W)</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2">25% Low Idle</td>
+                            <td className="py-1.5 px-2">1250 µs</td>
+                            <td className="py-1.5 px-2 text-right">2450</td>
+                            <td className="py-1.5 px-2 text-right">212 g</td>
+                            <td className="py-1.5 px-2 text-right">3.00 A</td>
+                            <td className="py-1.5 px-2 text-right">32.7 W</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">6.48</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2">50% Hover Ref</td>
+                            <td className="py-1.5 px-2">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right">4900</td>
+                            <td className="py-1.5 px-2 text-right">425 g</td>
+                            <td className="py-1.5 px-2 text-right">6.00 A</td>
+                            <td className="py-1.5 px-2 text-right">64.2 W</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">6.62</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2">75% Climb Rate</td>
+                            <td className="py-1.5 px-2">1750 µs</td>
+                            <td className="py-1.5 px-2 text-right">7350</td>
+                            <td className="py-1.5 px-2 text-right">638 g</td>
+                            <td className="py-1.5 px-2 text-right">9.00 A</td>
+                            <td className="py-1.5 px-2 text-right">94.5 W</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">6.75</td>
+                          </tr>
+                          <tr className="bg-cyan-950/20 font-bold">
+                            <td className="py-1.5 px-2 text-cyan-300">{testThrottle}% Current</td>
+                            <td className="py-1.5 px-2 text-cyan-300">{1000 + testThrottle * 10} µs</td>
+                            <td className="py-1.5 px-2 text-right text-cyan-300">{exp3RPM}</td>
+                            <td className="py-1.5 px-2 text-right text-cyan-300">{exp3Thrust} g</td>
+                            <td className="py-1.5 px-2 text-right text-cyan-300">{exp3Current} A</td>
+                            <td className="py-1.5 px-2 text-right text-cyan-300">{exp3Power} W</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">{exp3Efficiency}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 4: UAV CONTROL TESTING AND TRIMMING PROCEDURE */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 4 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>PWM SIGNAL PULSE WIDTH</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp4PulseWidth} µs</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Neutral Center: 1500 µs</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>SURFACE DEFLECTION ANGLE</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">{exp4Deflection}°</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">Pushrod Travel: {exp4Travel} mm</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                        <span>DIGITAL SUB-TRIM OFFSET</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">
+                        {testSubTrim > 0 ? `+${testSubTrim}` : testSubTrim} µs
+                      </div>
+                      <div className="text-[10px] text-slate-400 mt-1">✓ Zero-Aero Trim Locked</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Gauge className="w-3.5 h-3.5 text-purple-400" />
+                        <span>ACTUATOR STALL TORQUE</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">1.80 kg·cm</div>
+                      <div className="text-[10px] text-purple-400 mt-1">@ 5.02V BEC Bus (0.10s/60°)</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-bold">TRANSMITTER GIMBAL DEFLECTION:</span>
+                        <span className="text-cyan-300 font-black">{testServoStick}°</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={-45}
+                        max={45}
+                        step={1}
+                        value={testServoStick}
+                        onChange={(e) => setTestServoStick(parseInt(e.target.value, 10))}
+                        className="w-full accent-cyan-400 cursor-pointer"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-bold">DIGITAL SUB-TRIM ALIGNMENT:</span>
+                        <span className="text-amber-300 font-black">{testSubTrim > 0 ? `+${testSubTrim}` : testSubTrim} µs</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={-20}
+                        max={20}
+                        step={1}
+                        value={testSubTrim}
+                        onChange={(e) => setTestSubTrim(parseInt(e.target.value, 10))}
+                        className="w-full accent-amber-400 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Control Surface Trimming &amp; Signal Bus Schedule</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Control Surface</th>
+                            <th className="py-1 px-2">Channel</th>
+                            <th className="py-1 px-2 text-right">Neutral Pulse</th>
+                            <th className="py-1 px-2 text-right">Trimming Offset</th>
+                            <th className="py-1 px-2 text-right">Angular Throw</th>
+                            <th className="py-1 px-2 text-center">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Ailerons (Roll Axis)</td>
+                            <td className="py-1.5 px-2">CH1</td>
+                            <td className="py-1.5 px-2 text-right">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">{testSubTrim > 0 ? `+${testSubTrim}` : testSubTrim} µs</td>
+                            <td className="py-1.5 px-2 text-right">±15.0° (12.5mm travel)</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Calibrated Neutral</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Elevator (Pitch Axis)</td>
+                            <td className="py-1.5 px-2">CH2</td>
+                            <td className="py-1.5 px-2 text-right">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right">0 µs</td>
+                            <td className="py-1.5 px-2 text-right">±20.0° (15.0mm travel)</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Centered</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Rudder (Yaw Axis)</td>
+                            <td className="py-1.5 px-2">CH4</td>
+                            <td className="py-1.5 px-2 text-right">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right">0 µs</td>
+                            <td className="py-1.5 px-2 text-right">±25.0° (18.0mm travel)</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Centered</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 5: LITHIUM POLYMER BATTERY TESTING, BALANCING AND MAINTENANCE */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 5 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Battery className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>PACK TERMINAL VOLTAGE</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp5PackVoltage} V</div>
+                      <div className="text-[10px] text-slate-400 mt-1">State of Charge: {testLiPoSoC}%</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>CELL DELTA (ΔV) BALANCE</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">7.0 mV</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">✓ Ultra-Balanced (&lt; 15mV)</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>INTERNAL RESISTANCE (IR)</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">4.2 mΩ/cell</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Total Pack: 12.6 mΩ (Healthy)</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-purple-400" />
+                        <span>MAX DISCHARGE RATING</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">{exp5MaxDischarge} A</div>
+                      <div className="text-[10px] text-purple-400 mt-1">25C Rate on 3300mAh Pack</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        BATTERY STATE OF CHARGE (SoC):
+                      </span>
+                      <span className="text-cyan-300 font-black">{testLiPoSoC}% ({(exp5PackVoltage)}V Pack)</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={10}
+                      max={100}
+                      step={1}
+                      value={testLiPoSoC}
+                      onChange={(e) => setTestLiPoSoC(parseInt(e.target.value, 10))}
+                      className="w-full accent-cyan-400 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Individual Cell Voltage &amp; Health Log</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Cell Location</th>
+                            <th className="py-1 px-2 text-right">Cell Voltage (V)</th>
+                            <th className="py-1 px-2 text-right">Internal Resistance (IR)</th>
+                            <th className="py-1 px-2">Electrode State</th>
+                            <th className="py-1 px-2 text-center">Condition</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Cell 1 (Cathode Side)</td>
+                            <td className="py-1.5 px-2 text-right">{exp5Cell1} V</td>
+                            <td className="py-1.5 px-2 text-right">4.1 mΩ</td>
+                            <td className="py-1.5 px-2">LiCoO2 / High-Purity Graphite</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Balanced</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Cell 2 (Center Core)</td>
+                            <td className="py-1.5 px-2 text-right">{exp5Cell2} V</td>
+                            <td className="py-1.5 px-2 text-right">4.3 mΩ</td>
+                            <td className="py-1.5 px-2">LiCoO2 / High-Purity Graphite</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Balanced</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Cell 3 (Anode Side)</td>
+                            <td className="py-1.5 px-2 text-right">{exp5Cell3} V</td>
+                            <td className="py-1.5 px-2 text-right">4.2 mΩ</td>
+                            <td className="py-1.5 px-2">LiCoO2 / High-Purity Graphite</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Balanced</td>
+                          </tr>
+                          <tr className="bg-cyan-950/20">
+                            <td className="py-1.5 px-2 text-amber-300">Storage Setpoint Target</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">3.850 V / cell</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">11.55 V Pack</td>
+                            <td className="py-1.5 px-2" colSpan={2}>Optimal long-term storage preservation</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 6: RC TRANSMITTER RESETTING, CALIBRATION AND FREQUENCY BINDING */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 6 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>RF PROTOCOL BINDING</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">BOUND &amp; SYNC</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">AFHDS 2A 2.4GHz FHSS</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>RSSI SIGNAL STRENGTH</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">-58 dBm</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">Link: 98% (Packet Loss: 0%)</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                        <span>GIMBAL ENDPOINTS</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">1000 - 2000 µs</div>
+                      <div className="text-[10px] text-slate-400 mt-1">50Hz Refresh (20ms)</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                        <span>FAILSAFE INTERLOCK</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">ARMED &amp; SAFE</div>
+                      <div className="text-[10px] text-purple-400 mt-1">Throttle Cut &lt; 950 µs</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-2">
+                    <span className="text-slate-300 font-bold block text-xs">INSPECT TRANSMITTER CHANNEL TELEMETRY:</span>
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      {[1, 2, 3, 4, 5, 6].map((ch) => (
+                        <button
+                          key={ch}
+                          onClick={() => setTestRFChannel(ch)}
+                          className={`p-2 rounded-lg border text-center transition-all cursor-pointer ${
+                            testRFChannel === ch
+                              ? 'bg-cyan-950 border-cyan-400 text-cyan-300 shadow-glow-cyan'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <div className="text-[10px] font-bold">CH {ch}</div>
+                          <div className="text-[9px] mt-0.5">
+                            {ch === 1 ? 'Roll' : ch === 2 ? 'Pitch' : ch === 3 ? 'Throttle' : ch === 4 ? 'Yaw' : ch === 5 ? 'Mode' : 'Arm'}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus 6-Channel PWM Endpoint &amp; Failsafe Mapping</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Channel</th>
+                            <th className="py-1 px-2">Function</th>
+                            <th className="py-1 px-2 text-right">Min Pulse</th>
+                            <th className="py-1 px-2 text-right">Center Neutral</th>
+                            <th className="py-1 px-2 text-right">Max Pulse</th>
+                            <th className="py-1 px-2 text-center">Failsafe Reaction</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr className={testRFChannel === 1 ? 'bg-cyan-950/30' : ''}>
+                            <td className="py-1.5 px-2 text-cyan-300">CH1</td>
+                            <td className="py-1.5 px-2">Aileron (Roll Axis)</td>
+                            <td className="py-1.5 px-2 text-right">1000 µs</td>
+                            <td className="py-1.5 px-2 text-right">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right">2000 µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Hold Neutral (1500 µs)</td>
+                          </tr>
+                          <tr className={testRFChannel === 2 ? 'bg-cyan-950/30' : ''}>
+                            <td className="py-1.5 px-2 text-cyan-300">CH2</td>
+                            <td className="py-1.5 px-2">Elevator (Pitch Axis)</td>
+                            <td className="py-1.5 px-2 text-right">1000 µs</td>
+                            <td className="py-1.5 px-2 text-right">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right">2000 µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Hold Neutral (1500 µs)</td>
+                          </tr>
+                          <tr className={testRFChannel === 3 ? 'bg-cyan-950/30' : ''}>
+                            <td className="py-1.5 px-2 text-cyan-300">CH3</td>
+                            <td className="py-1.5 px-2">Throttle (Collective)</td>
+                            <td className="py-1.5 px-2 text-right">1000 µs</td>
+                            <td className="py-1.5 px-2 text-right">1000 µs (Idle)</td>
+                            <td className="py-1.5 px-2 text-right">2000 µs</td>
+                            <td className="py-1.5 px-2 text-center text-rose-400 font-bold">CUT MOTOR (950 µs)</td>
+                          </tr>
+                          <tr className={testRFChannel === 4 ? 'bg-cyan-950/30' : ''}>
+                            <td className="py-1.5 px-2 text-cyan-300">CH4</td>
+                            <td className="py-1.5 px-2">Rudder (Yaw Axis)</td>
+                            <td className="py-1.5 px-2 text-right">1000 µs</td>
+                            <td className="py-1.5 px-2 text-right">1500 µs</td>
+                            <td className="py-1.5 px-2 text-right">2000 µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Hold Neutral (1500 µs)</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 7: PROPELLER BALANCING PROCEDURE */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 7 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>VIBRATION AMPLITUDE (V_rms)</span>
+                      </div>
+                      <div className={`text-xl font-black mt-1 ${isPropBalanced ? 'text-emerald-400' : 'text-rose-400'}`}>
+                        {exp7Vrms} mm/s
+                      </div>
+                      <div className="text-[10px] mt-1 text-slate-400">
+                        {isPropBalanced ? '✓ Smooth Aero Spec (< 0.5 mm/s)' : '⚠️ Excessive Vibration'}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Gauge className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>ACCELEROMETER G-FORCE</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp7GForce} G</div>
+                      <div className="text-[10px] text-slate-400 mt-1">3-Axis Piezoelectric Sensor</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Scale className="w-3.5 h-3.5 text-amber-400" />
+                        <span>STATIC IMBALANCE MASS</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">{exp7Imbalance} mg</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Magnetic Levitation Balancer</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Crosshair className="w-3.5 h-3.5 text-purple-400" />
+                        <span>DYNAMIC TRACKING RUNOUT</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">{exp7Runout} mm</div>
+                      <div className="text-[10px] text-purple-400 mt-1">Blade Tip Plane Coincidence</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <span className="text-slate-300 font-bold block text-xs">DYNAMIC PROPELLER BALANCE CORRECTION:</span>
+                      <span className="text-[11px] text-slate-400">Apply 3M micro-aerodynamic balance tape to lighter blade</span>
+                    </div>
+                    <button
+                      onClick={() => setIsPropBalanced(!isPropBalanced)}
+                      className={`px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-2 transition-all cursor-pointer ${
+                        isPropBalanced
+                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-glow-emerald'
+                          : 'bg-rose-600 hover:bg-rose-500 text-white shadow-glow-rose'
+                      }`}
+                    >
+                      <span>{isPropBalanced ? '✓ BALANCED (Aero Tape Applied)' : '⚠️ UNBALANCED (Raw Propeller)'}</span>
+                    </button>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Harmonic Vibration Spectrum &amp; Attenuation Log</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Harmonic Order</th>
+                            <th className="py-1 px-2">Frequency (Hz)</th>
+                            <th className="py-1 px-2 text-right">Raw Unbalanced</th>
+                            <th className="py-1 px-2 text-right">Tape Balanced</th>
+                            <th className="py-1 px-2 text-center">Attenuation Efficiency</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">1X RPM Fundamental</td>
+                            <td className="py-1.5 px-2">160 Hz (9600 RPM)</td>
+                            <td className="py-1.5 px-2 text-right text-rose-400">4.82 mm/s (42 dB)</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">0.38 mm/s (8 dB)</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">-92.1% (34 dB Drop)</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">2X Blade Passage Frequency</td>
+                            <td className="py-1.5 px-2">320 Hz (2-Blade)</td>
+                            <td className="py-1.5 px-2 text-right text-rose-400">2.14 mm/s (26 dB)</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">0.18 mm/s (4 dB)</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">-91.6% (22 dB Drop)</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Flight Controller IMU Noise</td>
+                            <td className="py-1.5 px-2">0 - 500 Hz Broadband</td>
+                            <td className="py-1.5 px-2 text-right text-rose-400">1.85 G RMS</td>
+                            <td className="py-1.5 px-2 text-right text-emerald-400">0.14 G RMS</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">✓ Sensor Gyro Stabilized</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 8: FIXED WING UAV CENTRE OF GRAVITY CALCULATION AND BALANCING */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 8 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>LONGITUDINAL CG (X_CG)</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp8XCG} mm</div>
+                      <div className="text-[10px] text-slate-400 mt-1">From Leading Edge (LE = 0)</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>CG AS % OF MAC</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">{exp8CGMac}% MAC</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">Optimal Window: 28% - 33%</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                        <span>STATIC MARGIN (SM)</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">{exp8SM}%</div>
+                      <div className="text-[10px] text-slate-400 mt-1">
+                        {parseFloat(exp8SM) >= 10 ? '✓ Highly Stable' : parseFloat(exp8SM) >= 5 ? '✓ Positive Stable' : '⚠️ Neutral'}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Wind className="w-3.5 h-3.5 text-purple-400" />
+                        <span>PITCH STABILITY DERIVATIVE</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">dCm/dα &lt; 0</div>
+                      <div className="text-[10px] text-purple-400 mt-1">Self-Restoring Moment</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        BATTERY LONGITUDINAL POSITION ADJUSTMENT:
+                      </span>
+                      <span className="text-cyan-300 font-black">
+                        {testBatteryShiftMm > 0 ? `+${testBatteryShiftMm}` : testBatteryShiftMm} mm along Fuselage Datum
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min={-40}
+                      max={40}
+                      step={1}
+                      value={testBatteryShiftMm}
+                      onChange={(e) => setTestBatteryShiftMm(parseInt(e.target.value, 10))}
+                      className="w-full accent-cyan-400 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Moment Balance Matrix (Datum = Wing Leading Edge)</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Station / Component</th>
+                            <th className="py-1 px-2 text-right">Mass (g)</th>
+                            <th className="py-1 px-2 text-right">Moment Arm from LE (mm)</th>
+                            <th className="py-1 px-2 text-right">Moment (N·mm)</th>
+                            <th className="py-1 px-2 text-center">Stability Contribution</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Motor &amp; Firewall Assembly</td>
+                            <td className="py-1.5 px-2 text-right">165 g</td>
+                            <td className="py-1.5 px-2 text-right">-85.0 mm</td>
+                            <td className="py-1.5 px-2 text-right">-13,760 N·mm</td>
+                            <td className="py-1.5 px-2 text-center text-cyan-400">Nose Ballast</td>
+                          </tr>
+                          <tr className="bg-cyan-950/20 font-bold">
+                            <td className="py-1.5 px-2 text-amber-300">Movable 4S LiPo Battery</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">245 g</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">{110 + testBatteryShiftMm} mm</td>
+                            <td className="py-1.5 px-2 text-right text-amber-300">
+                              {((245 * 9.81 / 1000) * (110 + testBatteryShiftMm)).toFixed(0)} N·mm
+                            </td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Primary CG Adjuster</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Main Wings &amp; Carbon Spar</td>
+                            <td className="py-1.5 px-2 text-right">380 g</td>
+                            <td className="py-1.5 px-2 text-right">+65.0 mm</td>
+                            <td className="py-1.5 px-2 text-right">+24,230 N·mm</td>
+                            <td className="py-1.5 px-2 text-center text-cyan-400">Aerodynamic Center</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Tail Empennage &amp; Servos</td>
+                            <td className="py-1.5 px-2 text-right">110 g</td>
+                            <td className="py-1.5 px-2 text-right">+480.0 mm</td>
+                            <td className="py-1.5 px-2 text-right">+51,800 N·mm</td>
+                            <td className="py-1.5 px-2 text-center text-cyan-400">Pitch Restoring Arm</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 9: DRONE BASE AND AVIONIC COMPONENTS ASSEMBLING (QUADCOPTER) */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 9 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Scale className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>COMBINED 4-ROTOR THRUST</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">{exp9Thrust} g</div>
+                      <div className="text-[10px] text-slate-400 mt-1">Hover Equilibrium: 1080 g</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>HOVER THROTTLE RATIO</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">42.5 %</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">✓ 3.15:1 TWR Power Headroom</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Zap className="w-3.5 h-3.5 text-amber-400" />
+                        <span>4-CH ESC PWM COMMAND</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">{exp9PWM} µs</div>
+                      <div className="text-[10px] text-slate-400 mt-1">M1 - M4 Synchronized</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-purple-400" />
+                        <span>YAW TORQUE REACTION</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">0.00 N·m</div>
+                      <div className="text-[10px] text-purple-400 mt-1">2x CW + 2x CCW Equilibrium</div>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-slate-300 font-bold flex items-center gap-1.5">
+                        <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                        COLLECTIVE FLIGHT THROTTLE:
+                      </span>
+                      <span className="text-cyan-300 font-black">{testQuadThrottle}% (Hover Setpoint: 42%)</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={1}
+                      value={testQuadThrottle}
+                      onChange={(e) => setTestQuadThrottle(parseInt(e.target.value, 10))}
+                      className="w-full accent-cyan-400 cursor-pointer"
+                    />
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus Quadcopter-X Motor Orientation &amp; Signal Schedule</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Motor Index</th>
+                            <th className="py-1 px-2">Frame Arm</th>
+                            <th className="py-1 px-2">Spin Direction</th>
+                            <th className="py-1 px-2">Propeller Pitch</th>
+                            <th className="py-1 px-2 text-right">PWM Signal</th>
+                            <th className="py-1 px-2 text-center">Torque Vector</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300 font-bold">M1</td>
+                            <td className="py-1.5 px-2">Front-Right (Red Arm)</td>
+                            <td className="py-1.5 px-2 text-amber-300">CCW (Counter-Clockwise)</td>
+                            <td className="py-1.5 px-2">1045R Reverse Pitch</td>
+                            <td className="py-1.5 px-2 text-right">{exp9PWM} µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">+τ Yaw Torque</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300 font-bold">M2</td>
+                            <td className="py-1.5 px-2">Rear-Left (White Arm)</td>
+                            <td className="py-1.5 px-2 text-amber-300">CCW (Counter-Clockwise)</td>
+                            <td className="py-1.5 px-2">1045R Reverse Pitch</td>
+                            <td className="py-1.5 px-2 text-right">{exp9PWM} µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">+τ Yaw Torque</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300 font-bold">M3</td>
+                            <td className="py-1.5 px-2">Front-Left (Red Arm)</td>
+                            <td className="py-1.5 px-2 text-cyan-300">CW (Clockwise)</td>
+                            <td className="py-1.5 px-2">1045 Standard Pitch</td>
+                            <td className="py-1.5 px-2 text-right">{exp9PWM} µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">-τ Yaw Torque</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300 font-bold">M4</td>
+                            <td className="py-1.5 px-2">Rear-Right (White Arm)</td>
+                            <td className="py-1.5 px-2 text-cyan-300">CW (Clockwise)</td>
+                            <td className="py-1.5 px-2">1045 Standard Pitch</td>
+                            <td className="py-1.5 px-2 text-right">{exp9PWM} µs</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">-τ Yaw Torque</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* ========================================================================= */}
+              {/* EXP 10: DRONE FLIGHT CONTROLLER PROGRAMMING AND CALIBRATION (KK 2.1.5) */}
+              {/* ========================================================================= */}
+              {selectedExpNo === 10 && (
+                <>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>6-AXIS ACCELEROMETER CAL</span>
+                      </div>
+                      <div className="text-xl font-black text-cyan-300 mt-1">X:0 Y:0 Z:1.00G</div>
+                      <div className="text-[10px] text-emerald-400 mt-1">✓ Calibrated Level Horizon</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>GYROSCOPE DRIFT RATE</span>
+                      </div>
+                      <div className="text-xl font-black text-emerald-400 mt-1">&lt; 0.04 °/s</div>
+                      <div className="text-[10px] text-cyan-400 mt-1">InvenSense MPU6050 @ 400Hz</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-amber-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <Sliders className="w-3.5 h-3.5 text-amber-400" />
+                        <span>ROLL/PITCH PI GAINS</span>
+                      </div>
+                      <div className="text-xl font-black text-amber-300 mt-1">P:{testPGain} | I:{testIGain}</div>
+                      <div className="text-[10px] text-slate-400 mt-1">P-Limit: 100 | I-Limit: 20</div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-slate-900/90 border border-purple-500/40">
+                      <div className="text-slate-400 text-[10px] flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-purple-400" />
+                        <span>SELF-LEVELING FILTER</span>
+                      </div>
+                      <div className="text-xl font-black text-purple-300 mt-1">
+                        {testSelfLevel ? 'ACTIVE' : 'RATE MODE'}
+                      </div>
+                      <div className="text-[10px] text-purple-400 mt-1">Atmega644PA 8-Bit RISC MCU</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-xl bg-slate-950/80 border border-slate-800">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-bold">ROLL/PITCH P-GAIN:</span>
+                        <span className="text-cyan-300 font-black">{testPGain} (Default 55)</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={30}
+                        max={90}
+                        step={1}
+                        value={testPGain}
+                        onChange={(e) => setTestPGain(parseInt(e.target.value, 10))}
+                        className="w-full accent-cyan-400 cursor-pointer"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300 font-bold">ROLL/PITCH I-GAIN:</span>
+                        <span className="text-amber-300 font-black">{testIGain} (Default 30)</span>
+                      </div>
+                      <input
+                        type="range"
+                        min={10}
+                        max={60}
+                        step={1}
+                        value={testIGain}
+                        onChange={(e) => setTestIGain(parseInt(e.target.value, 10))}
+                        className="w-full accent-amber-400 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-slate-800 bg-slate-950/60 overflow-hidden">
+                    <div className="p-2.5 bg-slate-900/80 border-b border-slate-800 font-bold text-cyan-300 flex items-center gap-2">
+                      <FileText className="w-4 h-4" />
+                      <span>Syllabus KK2.1.5 EEPROM Configuration &amp; Gain Settings</span>
+                    </div>
+                    <div className="overflow-x-auto p-2">
+                      <table className="w-full text-[11px] text-left">
+                        <thead>
+                          <tr className="border-b border-slate-800 text-slate-400">
+                            <th className="py-1 px-2">Parameter Name</th>
+                            <th className="py-1 px-2">EEPROM Register</th>
+                            <th className="py-1 px-2 text-right">Programmed Value</th>
+                            <th className="py-1 px-2 text-right">Standard Range</th>
+                            <th className="py-1 px-2 text-center">Flight Dynamic Effect</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-800/60 text-slate-300">
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Roll/Pitch P-Gain</td>
+                            <td className="py-1.5 px-2">0x0014</td>
+                            <td className="py-1.5 px-2 text-right font-bold text-cyan-300">{testPGain}</td>
+                            <td className="py-1.5 px-2 text-right">40 - 75</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Rotational angular stiffness</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Roll/Pitch I-Gain</td>
+                            <td className="py-1.5 px-2">0x0016</td>
+                            <td className="py-1.5 px-2 text-right font-bold text-amber-300">{testIGain}</td>
+                            <td className="py-1.5 px-2 text-right">20 - 45</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Wind gust drift rejection</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Yaw P-Gain / I-Gain</td>
+                            <td className="py-1.5 px-2">0x0018</td>
+                            <td className="py-1.5 px-2 text-right">P: 60 | I: 35</td>
+                            <td className="py-1.5 px-2 text-right">P: 50-80 / I: 25-50</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Prevents heading slip</td>
+                          </tr>
+                          <tr>
+                            <td className="py-1.5 px-2 text-cyan-300">Accelerometer Zero-G</td>
+                            <td className="py-1.5 px-2">0x0030</td>
+                            <td className="py-1.5 px-2 text-right">X:+1 / Y:-1 / Z:+256</td>
+                            <td className="py-1.5 px-2 text-right">±10 LSB Offset</td>
+                            <td className="py-1.5 px-2 text-center text-emerald-400">Level attitude reference</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
             </div>
 
-            {/* Live Throttle Sweep Slider */}
-            <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2 font-mono text-xs mb-4">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300 font-bold">PWM THROTTLE SWEEP:</span>
-                <span className="text-cyan-300 font-bold">{testThrottle}%</span>
-              </div>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={testThrottle}
-                onChange={(e) => setTestThrottle(parseInt(e.target.value, 10))}
-                className="w-full accent-cyan-400 cursor-pointer"
-              />
-            </div>
-
-            {/* Screenshot & Report Action Buttons */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+            {/* Modal Footer Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-3 border-t border-cyan-500/20 shrink-0">
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleCaptureWorkspace}
                   disabled={isCapturingScreenshot}
-                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-glow-cyan flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-glow-cyan flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                 >
                   <Camera className="w-4 h-4" />
                   <span>{isCapturingScreenshot ? 'Capturing...' : 'SCREENSHOT OUTPUT'}</span>
@@ -2518,7 +3748,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                     setSelectedReportExpId(selectedExpNo);
                     setIsRecordModalOpen(true);
                   }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer active:scale-95"
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
                 >
                   <FileText className="w-4 h-4" />
                   <span>GENERATE OFFICIAL LAB RECORD</span>
@@ -2527,11 +3757,12 @@ export const HardwareWorkbenchView: React.FC = () => {
 
               <button
                 onClick={() => setShowOutputModal(false)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs cursor-pointer"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs cursor-pointer transition-colors"
               >
                 Return to Workbench
               </button>
             </div>
+
           </div>
         </div>
       )}

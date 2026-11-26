@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { LabProvider, useLab } from './context/LabContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { Header } from './components/layout/Header';
 import { Sidebar } from './components/layout/Sidebar';
 import { StatusBar } from './components/layout/StatusBar';
@@ -9,6 +10,8 @@ import { ComponentInspectionModal } from './components/common/ComponentInspectio
 import { MobileControllerView } from './components/mobile-controller/MobileControllerView';
 import { DEFAULT_ROOM_CODE } from './utils/remoteControllerLink';
 import { LandingIntroScreen } from './components/layout/LandingIntroScreen';
+import { AuthModal } from './components/auth/AuthModal';
+import { AdminPortalModal } from './components/auth/AdminPortalModal';
 import { Smartphone, Gamepad2, ArrowRight } from 'lucide-react';
 
 // Experiment Views
@@ -67,11 +70,18 @@ const MainSimulationRouter: React.FC = () => {
 const LabApp: React.FC = () => {
   const workspaceRef = useRef<HTMLDivElement>(null);
   const { inspectedComponent, closeInspection, openInspection } = useLab();
+  const { 
+    currentUser, 
+    isAdmin, 
+    isAuthModalOpen, 
+    setIsAuthModalOpen, 
+    isAdminPortalOpen, 
+    setIsAdminPortalOpen 
+  } = useAuth();
 
-  // Check if user has entered the lab from the initial landing screen
-  const [hasEnteredLab, setHasEnteredLab] = useState(() => {
-    return sessionStorage.getItem('rithik_lab_entered') === 'true';
-  });
+  // Every page refresh starts fresh at the glowing intro screen as requested!
+  const [hasEnteredLab, setHasEnteredLab] = useState<boolean>(false);
+  const [authInitialTab, setAuthInitialTab] = useState<'login' | 'register' | 'admin'>('login');
 
   // Check if opened as dedicated mobile controller (via QR scan or ?mode=controller)
   const [isMobileControllerMode, setIsMobileControllerMode] = useState(false);
@@ -104,23 +114,42 @@ const LabApp: React.FC = () => {
     );
   }
 
-  // If user has not yet entered the lab, show the full-screen glowing animated intro!
+  // EVERY TIME REFRESH: Show the full-screen glowing animated intro page!
   if (!hasEnteredLab) {
     return (
-      <LandingIntroScreen
-        onEnterLab={() => {
-          sessionStorage.setItem('rithik_lab_entered', 'true');
-          setHasEnteredLab(true);
-        }}
-      />
+      <>
+        <LandingIntroScreen
+          onEnterLab={() => {
+            if (currentUser) {
+              setHasEnteredLab(true);
+            } else {
+              setAuthInitialTab('login');
+              setIsAuthModalOpen(true);
+            }
+          }}
+          onOpenAdminLogin={() => {
+            setAuthInitialTab('admin');
+            setIsAuthModalOpen(true);
+          }}
+        />
+
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          initialTab={authInitialTab}
+          onClose={() => setIsAuthModalOpen(false)}
+          onSuccess={() => {
+            setHasEnteredLab(true);
+          }}
+        />
+      </>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#060911] text-slate-100 font-sans">
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#040713] text-slate-100 font-sans">
       {/* MOBILE DEVICE PROMINENT JOYSTICK CALLOUT BANNER (Visible on phones) */}
       {isMobileDevice && (
-        <div className="bg-gradient-to-r from-cyan-900 via-blue-900 to-indigo-950 p-2.5 px-3 border-b-2 border-cyan-400 flex items-center justify-between z-50 shadow-2xl">
+        <div className="bg-gradient-to-r from-cyan-900 via-blue-900 to-indigo-950 p-2 px-3 border-b-2 border-cyan-400 flex items-center justify-between z-50 shadow-2xl">
           <div className="flex items-center gap-2">
             <Gamepad2 className="w-5 h-5 text-cyan-300 animate-bounce" />
             <div className="text-left">
@@ -138,15 +167,18 @@ const LabApp: React.FC = () => {
         </div>
       )}
 
-      {/* Top Engineering Nav Header */}
-      <Header workspaceRef={workspaceRef} />
+      {/* Top Engineering Nav Header with onReturnToIntro */}
+      <Header 
+        workspaceRef={workspaceRef} 
+        onReturnToIntro={() => setHasEnteredLab(false)} 
+      />
 
       {/* Main Center Area: Sidebar + Active Simulation Canvas */}
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar />
         <main
           ref={workspaceRef}
-          className="flex-1 h-full overflow-hidden relative bg-[#070b16]"
+          className="flex-1 h-full overflow-hidden relative bg-[#040713]"
         >
           <MainSimulationRouter />
         </main>
@@ -176,14 +208,28 @@ const LabApp: React.FC = () => {
         onClose={closeInspection}
         onSelectComponent={openInspection}
       />
+
+      {/* Authentication & Admin Management Modals */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        initialTab={authInitialTab}
+        onClose={() => setIsAuthModalOpen(false)}
+        onSuccess={() => {
+          setHasEnteredLab(true);
+        }}
+      />
+
+      <AdminPortalModal />
     </div>
   );
 };
 
 export default function App() {
   return (
-    <LabProvider>
-      <LabApp />
-    </LabProvider>
+    <AuthProvider>
+      <LabProvider>
+        <LabApp />
+      </LabProvider>
+    </AuthProvider>
   );
 }

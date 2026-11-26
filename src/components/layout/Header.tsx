@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLab } from '../../context/LabContext';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Camera, 
   FileText, 
@@ -17,14 +18,20 @@ import {
   Minimize2,
   DownloadCloud,
   Smartphone,
-  Wrench
+  Wrench,
+  Home,
+  LogOut,
+  ShieldCheck,
+  Sparkles
 } from 'lucide-react';
 
 interface HeaderProps {
   workspaceRef: React.RefObject<HTMLDivElement | null>;
+  onReturnToIntro?: () => void;
 }
 
-export const Header: React.FC<HeaderProps> = ({ workspaceRef }) => {
+export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro }) => {
+  const { currentUser, isAdmin, logout, setIsAuthModalOpen, setIsAdminPortalOpen } = useAuth();
   const {
     activeView,
     experiments,
@@ -178,10 +185,34 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef }) => {
 
       {/* Right Controls: Theme Toggle, Hardware Inspector, Capture, Report, Fullscreen */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* RETURN TO FULLSCREEN INTRO SCREEN BUTTON */}
+        {onReturnToIntro && (
+          <button
+            onClick={onReturnToIntro}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold transition-all shadow-sm cursor-pointer"
+            title="Return to Rithik's Aero-Space Laboratory Welcome Intro Screen"
+          >
+            <Home className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden lg:inline">Intro Page</span>
+          </button>
+        )}
+
+        {/* ADMIN PORTAL ACCESS BUTTON (If logged in as Admin: RITHIK or LAKSHMI NARASIMMAN) */}
+        {isAdmin && (
+          <button
+            onClick={() => setIsAdminPortalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400 text-xs font-mono font-black shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all cursor-pointer animate-pulse"
+            title="Open Master Administrator Dashboard"
+          >
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span className="tracking-wide">Admin Portal</span>
+          </button>
+        )}
+
         {/* HARDWARE ASSEMBLY BENCH SHORTCUT */}
         <button
           onClick={() => setActiveView('hardware-workbench')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md cursor-pointer ${
             activeView === 'hardware-workbench'
               ? 'bg-amber-500/30 text-amber-300 border-amber-400 shadow-glow-amber ring-1 ring-amber-400/50'
               : 'bg-gradient-to-r from-amber-600/30 to-amber-700/20 text-amber-300 border-amber-500/50 hover:bg-amber-600/40 hover:text-white'
@@ -262,12 +293,40 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef }) => {
         {/* Lab Record Generator Button */}
         <button
           onClick={handleOpenReport}
-          className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue border border-blue-400/50 transition-all active:scale-95"
+          className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue border border-blue-400/50 transition-all active:scale-95 cursor-pointer"
           title="Open Lab Record, Observations & PDF Generator"
         >
           <FileText className="w-3.5 h-3.5" />
           <span className="hidden md:inline">Record</span>
         </button>
+
+        {/* USER PROFILE & AUTHENTICATION PILL */}
+        {currentUser ? (
+          <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-700">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-xs font-mono">
+              <User className="w-3.5 h-3.5 text-cyan-400" />
+              <div className="text-left hidden xl:block">
+                <div className="text-[11px] font-bold text-white truncate max-w-[120px]">{currentUser.name}</div>
+                <div className="text-[9px] text-slate-400 truncate max-w-[120px]">{currentUser.rollNumber}</div>
+              </div>
+            </div>
+            <button
+              onClick={logout}
+              className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-800 transition-colors cursor-pointer"
+              title="Sign Out of Laboratory Account"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => setIsAuthModalOpen(true)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono font-bold shadow-glow-cyan transition-all cursor-pointer"
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Sign In</span>
+          </button>
+        )}
       </div>
     </header>
   );

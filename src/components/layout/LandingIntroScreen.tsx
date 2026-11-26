@@ -97,14 +97,11 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onEnterL
 
         {/* BRIGHT GLOWING TITLE WITH EXCELLENT ANIMATION */}
         <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-white leading-tight">
-          <span className="block text-cyan-400 font-mono text-base sm:text-xl md:text-2xl font-bold tracking-widest mb-1.5 drop-shadow-[0_0_15px_rgba(6,182,212,0.9)]">
+          <span className="block text-cyan-400 font-mono text-base sm:text-xl md:text-2xl font-bold tracking-widest mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.9)]">
             WELCOME TO
           </span>
           <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_50px_rgba(6,182,212,1)] animate-pulse inline-block">
-            RITHIK'S AERO - SPACE LABORATORY
-          </span>
-          <span className="block mt-2 text-2xl sm:text-3xl md:text-4xl font-mono text-amber-400 font-black tracking-wider drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]">
-            ( SIMULATOR )
+            AERO - SPACE SIMULATOR
           </span>
         </h1>
 

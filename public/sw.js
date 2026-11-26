@@ -41,7 +41,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event - Network First with Cache Fallback & Cache Population
+// Fetch Event - Network First / Cache First with Offline Fallback & Dynamic Cache Population
 self.addEventListener('fetch', (event) => {
   // Only handle GET requests
   if (event.request.method !== 'GET') return;
@@ -52,9 +52,25 @@ self.addEventListener('fetch', (event) => {
   }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Fetch from network to update cache in background
-      const fetchPromise = fetch(event.request)
+    caches.match(event.request, { ignoreSearch: true }).then((cachedResponse) => {
+      // If found in cache, return immediately (instant offline load)
+      if (cachedResponse) {
+        // Fetch from network to refresh cache in background if online
+        fetch(event.request)
+          .then((networkResponse) => {
+            if (networkResponse && networkResponse.status === 200) {
+              const responseClone = networkResponse.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(event.request, responseClone);
+              });
+            }
+          })
+          .catch(() => {});
+        return cachedResponse;
+      }
+
+      // If not in cache, fetch from network and store
+      return fetch(event.request)
         .then((networkResponse) => {
           if (networkResponse && networkResponse.status === 200) {
             const responseClone = networkResponse.clone();
@@ -65,18 +81,11 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         })
         .catch(() => {
-          // If offline and no network, cachedResponse is returned
-          if (cachedResponse) {
-            return cachedResponse;
-          }
-          // For HTML navigation requests, return the cached index.html
+          // If offline and request is an HTML page navigation, return cached /index.html
           if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
-            return caches.match('/index.html') || caches.match('/');
+            return caches.match('/index.html', { ignoreSearch: true }) || caches.match('/', { ignoreSearch: true });
           }
         });
-
-      // Return cached version immediately if available (Cache First for offline speed), or network
-      return cachedResponse || fetchPromise;
     })
   );
 });

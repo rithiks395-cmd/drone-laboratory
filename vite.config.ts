@@ -128,7 +128,7 @@ function offlinePwaPlugin(): Plugin {
   return {
     name: 'offline-pwa-plugin',
     closeBundle() {
-      const distDir = path.resolve(__dirname, 'dist');
+      const distDir = path.resolve(import.meta.dirname, 'dist');
       const assetsDir = path.resolve(distDir, 'assets');
       if (!fs.existsSync(assetsDir)) return;
 
@@ -141,6 +141,8 @@ function offlinePwaPlugin(): Plugin {
         '/manifest.json',
         '/favicon.svg',
         '/icons.svg',
+        '/pwa-192x192.png',
+        '/pwa-512x512.png',
         ...assetUrls,
       ];
 

@@ -120,7 +120,7 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
           <div className="flex items-center gap-1.5 sm:gap-2">
             <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-wider text-slate-100 flex items-center gap-1">
               <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-amber-300 bg-clip-text text-transparent font-black">
-                RITHIK'S DRONE LAB
+                AERO - SPACE LAB
               </span>
               <span className="hidden sm:inline font-mono text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 font-bold">
                 SIMULATOR

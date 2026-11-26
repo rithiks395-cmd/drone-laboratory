@@ -10,16 +10,25 @@ import {
   Lock,
   UserCheck,
   Compass,
-  Rocket
+  Rocket,
+  UserPlus,
+  LogIn
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 interface LandingIntroScreenProps {
   onEnterLab: () => void;
+  onOpenSignup: () => void;
+  onOpenLogin: () => void;
   onOpenAdminLogin: () => void;
 }
 
-export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onEnterLab, onOpenAdminLogin }) => {
+export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ 
+  onEnterLab, 
+  onOpenSignup,
+  onOpenLogin,
+  onOpenAdminLogin 
+}) => {
   const { currentUser, isAdmin, logout } = useAuth();
 
   return (
@@ -97,11 +106,14 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onEnterL
 
         {/* BRIGHT GLOWING TITLE WITH EXCELLENT ANIMATION */}
         <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-black tracking-tight text-white leading-tight">
-          <span className="block text-cyan-400 font-mono text-base sm:text-xl md:text-2xl font-bold tracking-widest mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.9)]">
+          <span className="block text-cyan-400 font-mono text-base sm:text-xl md:text-2xl font-bold tracking-widest mb-1.5 drop-shadow-[0_0_15px_rgba(6,182,212,0.9)]">
             WELCOME TO
           </span>
           <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_50px_rgba(6,182,212,1)] animate-pulse inline-block">
-            AERO - SPACE SIMULATOR
+            AERO - SPACE LABORATORY
+          </span>
+          <span className="block mt-2 text-2xl sm:text-3xl md:text-4xl font-mono text-amber-400 font-black tracking-wider drop-shadow-[0_0_25px_rgba(245,158,11,0.9)]">
+            ( SIMULATOR )
           </span>
         </h1>
 
@@ -152,29 +164,51 @@ export const LandingIntroScreen: React.FC<LandingIntroScreenProps> = ({ onEnterL
           </div>
         </div>
 
-        {/* ACTION BUTTONS: ENTER LAB & ADMIN PORTAL */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full sm:w-auto">
+        {/* ACTION BUTTONS: ENTER LAB, SIGN UP, LOGIN & ADMIN PORTAL */}
+        <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-3.5 w-full max-w-3xl">
           {/* THE MAIN GLOWING "ENTER LAB" BUTTON */}
           <button
             onClick={onEnterLab}
-            className="group relative flex items-center justify-center gap-4 px-10 sm:px-14 py-4 sm:py-5 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-amber-400 hover:from-cyan-300 hover:to-amber-300 text-slate-950 font-black text-base sm:text-xl tracking-wider shadow-[0_0_50px_rgba(6,182,212,0.9)] hover:shadow-[0_0_80px_rgba(245,158,11,1)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white/70 w-full sm:w-auto"
+            className="group relative flex items-center justify-center gap-3.5 px-8 sm:px-12 py-4 rounded-2xl bg-gradient-to-r from-cyan-400 via-sky-400 to-amber-400 hover:from-cyan-300 hover:to-amber-300 text-slate-950 font-black text-sm sm:text-lg tracking-wider shadow-[0_0_40px_rgba(6,182,212,0.8)] hover:shadow-[0_0_60px_rgba(245,158,11,1)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white/70 w-full sm:w-auto"
           >
             <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-cyan-500 to-amber-500 opacity-60 blur-lg group-hover:opacity-100 transition duration-300 pointer-events-none"></div>
-            <Rocket className="relative z-10 w-5 h-5 sm:w-6 sm:h-6 text-slate-950 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform duration-300" />
-            <span className="relative z-10 font-black drop-shadow tracking-widest">
-              ENTER LAB
+            <Rocket className="relative z-10 w-5 h-5 text-slate-950 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+            <span className="relative z-10 font-black drop-shadow tracking-widest uppercase">
+              {currentUser ? 'ENTER LAB WORKSPACE' : 'ENTER LAB'}
             </span>
-            <ArrowRight className="relative z-10 w-5 h-5 sm:w-6 sm:h-6 text-slate-950 group-hover:translate-x-2 transition-transform duration-300" />
+            <ArrowRight className="relative z-10 w-5 h-5 text-slate-950 group-hover:translate-x-1.5 transition-transform" />
           </button>
+
+          {!currentUser && (
+            <>
+              {/* CREATE ACCOUNT / SIGN UP BUTTON */}
+              <button
+                onClick={onOpenSignup}
+                className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-cyan-600/30 hover:bg-cyan-500/40 text-cyan-300 border-2 border-cyan-400/60 hover:border-cyan-300 font-bold font-mono text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.3)] transition-all cursor-pointer active:scale-95 w-full sm:w-auto"
+              >
+                <UserPlus className="w-4 h-4 text-cyan-300" />
+                <span>CREATE ACCOUNT / SIGN UP</span>
+              </button>
+
+              {/* STUDENT LOGIN BUTTON */}
+              <button
+                onClick={onOpenLogin}
+                className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-slate-200 border-2 border-slate-700 hover:border-cyan-400 font-bold font-mono text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95 w-full sm:w-auto"
+              >
+                <LogIn className="w-4 h-4 text-cyan-400" />
+                <span>STUDENT LOGIN</span>
+              </button>
+            </>
+          )}
 
           {/* ADMIN LOGIN BUTTON (Clean 'Admin Portal' Alone) */}
           <button
             onClick={onOpenAdminLogin}
-            className="flex items-center justify-center gap-2 px-7 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-2 border-amber-500/50 hover:border-amber-400 font-bold font-mono text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95 w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-amber-300 border-2 border-amber-500/50 hover:border-amber-400 font-bold font-mono text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95 w-full sm:w-auto"
             title="Institutional Master Administrator Portal"
           >
-            <Lock className="w-4 h-4 text-amber-400" />
-            <span>Admin Portal</span>
+            <ShieldCheck className="w-4 h-4 text-amber-400" />
+            <span>ADMIN PORTAL</span>
           </button>
         </div>
 

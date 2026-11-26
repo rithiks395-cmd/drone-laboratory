@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   User, 
@@ -29,6 +29,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const { loginStudent, loginAdmin, registerStudent } = useAuth();
   const [tab, setTab] = useState<'login' | 'register' | 'admin'>(initialTab);
+
+  // Sync tab whenever modal opens with a specific requested initialTab
+  useEffect(() => {
+    if (isOpen) {
+      setTab(initialTab);
+      setErrorMessage(null);
+      setSuccessMessage(null);
+    }
+  }, [isOpen, initialTab]);
 
   // Student Login state
   const [loginEmail, setLoginEmail] = useState('');

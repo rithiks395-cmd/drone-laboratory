@@ -127,6 +127,14 @@ const LabApp: React.FC = () => {
               setIsAuthModalOpen(true);
             }
           }}
+          onOpenSignup={() => {
+            setAuthInitialTab('register');
+            setIsAuthModalOpen(true);
+          }}
+          onOpenLogin={() => {
+            setAuthInitialTab('login');
+            setIsAuthModalOpen(true);
+          }}
           onOpenAdminLogin={() => {
             setAuthInitialTab('admin');
             setIsAuthModalOpen(true);

@@ -7,43 +7,33 @@ import {
   Wrench, 
   Layers, 
   Cpu, 
-  BatteryCharging, 
-  Disc, 
   Play, 
   CheckCircle2, 
-  AlertTriangle, 
   RotateCcw, 
-  Plus, 
-  Trash2, 
   Zap, 
   ShieldCheck, 
   FileText, 
   ChevronRight, 
-  Info, 
-  Gauge, 
-  Activity, 
-  Sliders, 
   Search,
-  Eye,
   Camera,
   Sun,
   Moon,
-  Sparkles,
-  Radio,
   Compass,
   ArrowRight,
   Maximize2,
   Minimize2,
   Check,
-  Power,
   XCircle,
   Move,
-  Download,
-  Share2,
   FolderPlus,
   Box,
   Cable,
-  CheckCheck
+  CheckCheck,
+  PanelRightClose,
+  PanelRightOpen,
+  Eye,
+  Crosshair,
+  Sliders
 } from 'lucide-react';
 
 // 3D Models
@@ -92,7 +82,7 @@ export interface ExperimentGuide {
   steps: AssemblyStep[];
 }
 
-// Mini 3D Component Object Preview
+// 3D Miniature Model Thumbnail for Components Tray
 const Component3DThumbnail: React.FC<{ visualType: string; isInstalled: boolean }> = ({ visualType, isInstalled }) => {
   return (
     <div className={`w-14 h-14 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 transition-all ${
@@ -157,7 +147,6 @@ const Component3DThumbnail: React.FC<{ visualType: string; isInstalled: boolean 
               <BalanceStandModel scale={0.8} />
             </group>
           )}
-          {/* Default generic 3D hardware wireframe */}
           {!['frame', 'arm', 'motor', 'esc', 'prop', 'battery', 'fc', 'servo', 'thrust_rig', 'balancer'].includes(visualType) && (
             <mesh>
               <octahedronGeometry args={[0.9]} />
@@ -171,28 +160,28 @@ const Component3DThumbnail: React.FC<{ visualType: string; isInstalled: boolean 
 };
 
 export const HardwareWorkbenchView: React.FC = () => {
-  const { openInspection, setIsRecordModalOpen, setSelectedReportExpId, captureScreenshot, atmosphereTheme } = useLab();
-  const { currentUser } = useAuth();
+  const { setSelectedReportExpId, setIsRecordModalOpen, atmosphereTheme } = useLab();
   const workbenchRef = useRef<HTMLDivElement>(null);
+  const orbitControlsRef = useRef<any>(null);
 
-  // Big Screen / Fullscreen Mode state
+  // Big Screen Fullscreen Workbench
   const [isFullscreenWorkbench, setIsFullscreenWorkbench] = useState<boolean>(false);
 
-  // New Project Flow: Custom Project Name & Empty Workbench
+  // Project State: Initialized via the Welcome Screen
   const [hasActiveProject, setHasActiveProject] = useState<boolean>(false);
   const [projectName, setProjectName] = useState<string>('My UAV Assembly Project');
-  const [tempProjectName, setTempProjectName] = useState<string>('My UAV Assembly Project');
-  const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
-  const [showWelcomeProjectModal, setShowWelcomeProjectModal] = useState<boolean>(true);
+  const [tempProjectName, setTempProjectName] = useState<string>('UAV Quadcopter Prototype - 2026');
+  const [selectedExpNo, setSelectedExpNo] = useState<number>(1);
+
+  // Floating Right-Side Dock State: Tab can be 'components' or 'procedure'
+  const [rightPanelTab, setRightPanelTab] = useState<'components' | 'procedure'>('procedure');
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
 
   // Lighting Mode: Night and Day time working space
   const [benchTimeMode, setBenchTimeMode] = useState<'day' | 'night'>(
     atmosphereTheme === 'day' ? 'day' : 'night'
   );
   const isDay = benchTimeMode === 'day';
-
-  // Selected Experiment No (1 to 10)
-  const [selectedExpNo, setSelectedExpNo] = useState<number>(1);
 
   // Active Category Filter for Components
   const [activeCategory, setActiveCategory] = useState<string>('All');
@@ -203,6 +192,9 @@ export const HardwareWorkbenchView: React.FC = () => {
 
   // Drag-and-drop workspace hover state
   const [isDropHover, setIsDropHover] = useState<boolean>(false);
+
+  // AutoCAD Camera View Presets
+  const [activeCameraView, setActiveCameraView] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
 
   // Real-time Red / Green Assembly Feedback
   const [validationAlert, setValidationAlert] = useState<{
@@ -217,6 +209,16 @@ export const HardwareWorkbenchView: React.FC = () => {
     1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: []
   });
 
+  // Circuit Diagram Modal State
+  const [activeSchematicModal, setActiveSchematicModal] = useState<{
+    title: string;
+    from: string;
+    to: string;
+    pinout: string;
+    wireColor: string;
+    schematicText: string;
+  } | null>(null);
+
   // Live Experiment Test Controls
   const [testThrottle, setTestThrottle] = useState<number>(0);
   const [isTestRunning, setIsTestRunning] = useState<boolean>(false);
@@ -227,7 +229,6 @@ export const HardwareWorkbenchView: React.FC = () => {
   const [isCapturingScreenshot, setIsCapturingScreenshot] = useState<boolean>(false);
 
   // Master Component Catalog for ALL 10 Experiments
-  // Note: NO "forExperiments" badges shown in UI as requested by user! Components are neutral realistic hardware parts.
   const [components, setComponents] = useState<ComponentItem[]>([
     {
       id: 'frame_f450',
@@ -278,7 +279,7 @@ export const HardwareWorkbenchView: React.FC = () => {
       name: '1045 Carbon-Reinforced Propellers (x4)',
       category: 'Propulsion',
       model: '10x4.5 inch 2-Blade Propeller Set (2 CW Pusher / 2 CCW Tractor)',
-      specs: 'Diameter: 10 inch, Pitch: 4.5 inch, Center Hub: 6mm with adapter rings',
+      specs: 'Diameter: 10 inch, Pitch: 4.5 inch, Center bore: 6.0mm with adapters',
       weightG: 48,
       qty: 4,
       installed: false,
@@ -286,17 +287,17 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
     {
       id: 'fc_kk215',
-      name: 'KK 2.1.5 LCD Flight Controller Board',
+      name: 'KK2.1.5 Multi-Rotor Flight Controller',
       category: 'Avionics',
-      model: 'KK2.1.5 Multi-Rotor Control Board with Graphic LCD & Atmel 644PA',
-      specs: 'Sensors: InvenSense MPU6050 6-DOF Gyro/Accel, 8 Motor outputs, 5 Inputs',
-      weightG: 22,
+      model: 'KK2.1.5 LCD Flight Control Board with Atmel Mega644PA & 6-Axis Sensor',
+      specs: 'Processor: ATmega644PA, Gyro/Accel: InvenSense MPU6050, Display: 128x64 LCD',
+      weightG: 21,
       qty: 1,
       installed: false,
       visualType: 'fc',
     },
     {
-      id: 'rc_receiver',
+      id: 'rc_receiver_ia6b',
       name: 'FS-iA6B 6-Channel 2.4GHz Receiver',
       category: 'Avionics',
       model: 'FlySky 2.4GHz AFHDS 2A PWM/SBUS Receiver with Dual Diversity Antenna',
@@ -450,53 +451,53 @@ export const HardwareWorkbenchView: React.FC = () => {
       visualType: 'pushrod',
     },
     {
-      id: 'lipo_charger_imax',
-      name: 'IMAX B6 Microprocessor Balance Charger',
-      category: 'Instrumentation',
-      model: 'Digital Multi-Chemistry 80W Charger with Individual Cell Balancer',
-      specs: 'Charge Current: 0.1 - 6.0A, Cell Count: 1-6S LiPo, LCD Status Display',
-      weightG: 280,
+      id: 'lipo_charger_b6',
+      name: 'IMAX B6 80W Microprocessor Balance Charger',
+      category: 'Power',
+      model: 'Digital Smart Charger with Integrated Lithium Cell Balancer & LCD',
+      specs: 'Charge Power: 80W (0.1 - 6.0A), LiPo/LiFe: 1-6 Cells, Input: 11-18V DC',
+      weightG: 260,
       qty: 1,
       installed: false,
       visualType: 'charger',
     },
     {
-      id: 'lipo_cell_checker',
-      name: '1S-8S Digital LiPo Voltage Checker & Buzzer',
+      id: 'lipo_checker',
+      name: 'Digital 1S-8S Battery Cell Voltage Checker & Buzzer',
       category: 'Instrumentation',
-      model: 'Digital Microprocessor Battery Monitor with Dual Piezo Alarms',
-      specs: 'Voltage Precision: ±0.01V, Cell Detection: 1S-8S, Low Voltage Alarm: 2.7-3.8V',
-      weightG: 16,
+      model: 'Microcontroller Low-Voltage Alarm & Precision Cell Voltage Meter',
+      specs: 'Voltage Precision: ±0.01V, Cell range: 0.5 - 4.5V per cell, Buzzer: 85dB',
+      weightG: 11,
       qty: 1,
       installed: false,
       visualType: 'checker',
     },
     {
-      id: 'bind_plug_loop',
-      name: '2.4GHz Receiver Jumper Bind Plug Cable',
+      id: 'bind_plug',
+      name: 'FlySky 2.4GHz Receiver Bind Plug Jumper',
       category: 'Wires & Linkages',
-      model: 'Shorting Loop Jumper Wire for Receiver BIND / CH3 Signal Pins',
-      specs: 'Standard 3-pin 2.54mm pitch DuPont housing with signal-to-ground loop',
-      weightG: 4,
+      model: '2.54mm Dupont Jumper Wire Connector for Binding Transmitter to Receiver',
+      specs: 'Pin pitch: 2.54mm, Gold plated contacts, High-flex insulation',
+      weightG: 2,
       qty: 1,
       installed: false,
       visualType: 'bind_plug',
     },
     {
-      id: 'prop_balancer',
-      name: 'Magnetic Levitation Propeller Balancer',
+      id: 'magnetic_balancer',
+      name: 'High-Precision Magnetic Suspension Propeller Balancer',
       category: 'Instrumentation',
-      model: 'Frictionless Dual Rare-Earth Neodymium Magnetic Suspension Stand',
-      specs: 'Sensitivity: <0.05g imbalance, Center Shaft: CNC hardened ground steel',
-      weightG: 240,
+      model: 'Dual Rare-Earth Neodymium Magnet Frictionless Balancing Stand',
+      specs: 'Friction: ~0 μN, Shaft: Hardened carbon steel with tapered alignment cones',
+      weightG: 160,
       qty: 1,
       installed: false,
       visualType: 'balancer',
     },
     {
-      id: 'balance_tape',
-      name: 'Precision Mylar Counter-Balancing Tape',
-      category: 'Wires & Linkages',
+      id: 'balancing_tape',
+      name: 'Aeronautical Balancing Tape & 600-Grit Sandpaper',
+      category: 'Mechanical',
       model: 'Aeronautical Thin-Film Balancing Tape & 600-Grit Sanding Pad',
       specs: 'Adhesive: High-shear acrylic, Density: 0.035g/cm², Sandpaper: 600 grit',
       weightG: 15,
@@ -574,7 +575,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'pick',
           targetComponentId: 'frame_f450',
           targetComponentName: 'F450 Quad-X Carbon Frame Plates',
-          instruction: 'From the components tray on the left, locate and drag the "F450 Quad-X Carbon Frame Plates" onto the center of the ESD workbench.',
+          instruction: 'From the components tray on the right, locate and drag the "F450 Quad-X Carbon Frame Plates" onto the center of the ESD workbench.',
         },
         {
           stepNo: 2,
@@ -598,288 +599,344 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'wire',
           targetComponentId: 'esc_30a',
           targetComponentName: 'SimonK 30A High-Speed ESCs (x4)',
-          instruction: 'Mount 4x "SimonK 30A High-Speed ESCs" under arm beams. Connect 3-phase bullet jacks (A, B, C) to motor leads and solder DC inputs to PDB terminals (+/-).',
+          instruction: 'Connect the 3-phase bullet connectors of the SimonK 30A ESCs to the BLDC motor wires, then solder DC leads to the integrated PDB pads.',
           connectionDiagram: {
-            from: 'SimonK 30A ESC 3-Phase Jacks',
-            to: 'A2212 BLDC Motor Stator Pins (A, B, C)',
-            pinout: 'Phase A -> Lead 1, Phase B -> Lead 2, Phase C -> Lead 3 | DC Red -> +12V, Black -> GND',
-            wireColor: 'Phase wires: Red/Black/Yellow bullet leads; DC power: 16AWG Red (+), Black (-)',
-            schematicText: '[PDB +12V] -> [ESC VCC+] | [PDB GND] -> [ESC GND-] | [ESC Phase A-B-C] -> [Motor A-B-C]',
-          },
+            from: '30A ESC 3-Phase Bullet Jacks (Blue/Yellow/Red)',
+            to: 'BLDC Motor Stator Leads (U, V, W phases)',
+            pinout: 'Phase A -> Lead 1, Phase B -> Lead 2, Phase C -> Lead 3 (Swap 2 leads to reverse motor direction)',
+            wireColor: 'Red/Black to PDB (+/- 11.1V), 3x Blue/Yellow to Motor Stator',
+            schematicText: '[PDB 11.1V Rail] ──► [ESC DC Input] ──► [30A FET Bridge] ──► [3x Bullet Jacks] ──► [BLDC Motor Stator]'
+          }
         },
         {
           stepNo: 5,
-          title: 'Mount KK2.1.5 Flight Controller Board',
-          actionType: 'execute',
+          title: 'Mount KK2.1.5 Flight Controller on Vibration Dampers',
+          actionType: 'mount',
           targetComponentId: 'fc_kk215',
-          targetComponentName: 'KK 2.1.5 LCD Flight Controller Board',
-          instruction: 'Position the "KK 2.1.5 LCD Flight Controller Board" on central nylon anti-vibration standoffs with forward heading arrow facing the front motor axis.',
-        },
-      ],
-    },
-    2: {
-      expNo: 2,
-      title: 'Fixed-Wing Airframe & Aerodynamic Control Surface Assembly',
-      aim: 'Assemble fixed-wing fuselage, carbon wing spar, install aileron/elevator/rudder servos, and calibrate control surface linkages.',
-      steps: [
-        {
-          stepNo: 1,
-          title: 'Place EPO Trainer Fuselage on Bench',
-          actionType: 'pick',
-          targetComponentId: 'fixed_wing_airframe',
-          targetComponentName: 'Trainer Fixed-Wing EPO Airframe',
-          instruction: 'From the left components tray, drag the "Trainer Fixed-Wing EPO Airframe" onto the workbench test cradle.',
+          targetComponentName: 'KK2.1.5 Multi-Rotor Flight Controller',
+          instruction: 'Fasten the KK2.1.5 board to the upper center frame using anti-vibration rubber bobbins with the forward orientation arrow pointing forward.',
         },
         {
-          stepNo: 2,
-          title: 'Insert Carbon Fiber Wing Spar Tube',
-          actionType: 'mount',
-          targetComponentId: 'wing_spar_carbon',
-          targetComponentName: 'High-Modulus Carbon Fiber Wing Spar Tube',
-          instruction: 'Select "High-Modulus Carbon Fiber Wing Spar Tube" and slide through fuselage pass-through to structurally join left and right main wings.',
-        },
-        {
-          stepNo: 3,
-          title: 'Install 4x SG90 Micro Servos in Control Surface Pockets',
-          actionType: 'mount',
-          targetComponentId: 'servos_9g',
-          targetComponentName: 'SG90 9g Micro Servos & Linkages (x4)',
-          instruction: 'Drag "SG90 9g Micro Servos & Linkages (x4)" and install into pre-molded bays: 2x in wings (Ailerons), 1x in vertical fin (Rudder), 1x in horizontal tail (Elevator).',
-        },
-        {
-          stepNo: 4,
-          title: 'Connect Piano Wire Pushrods to Control Horns',
+          stepNo: 6,
+          title: 'Secure Turnigy 3S 2200mAh LiPo & Connect XT60',
           actionType: 'wire',
-          targetComponentId: 'pushrod_linkage',
-          targetComponentName: 'Piano Wire Pushrods & Brass Clevises',
-          instruction: 'Connect "Piano Wire Pushrods & Brass Clevises" between servo output arms and nylon surface horns. Thread clevises to establish 0° neutral deflection.',
-          connectionDiagram: {
-            from: 'SG90 Servo Spline Horns',
-            to: 'Control Surface Nylon Horns (Ailerons, Elevator, Rudder)',
-            pinout: 'CH1: Aileron Servos (Y-Harness) | CH2: Elevator Servo | CH4: Rudder Servo',
-            wireColor: 'Signal: Orange, VCC (+5V): Red, Ground: Brown (3-wire JR format)',
-            schematicText: '[Receiver CH1-CH4] -> [JR 3-Pin Extension Leads] -> [SG90 Servos] -> [Pushrod Linkages]',
-          },
-        },
-      ],
-    },
-    3: {
-      expNo: 3,
-      title: 'Brushless Motor Thrust & Electrical Efficiency Calibration',
-      aim: 'Calibrate BLDC motor static thrust output vs rotational RPM, current draw, and power consumption using digital strain gauge load cell.',
-      steps: [
-        {
-          stepNo: 1,
-          title: 'Mount Digital Load-Cell Thrust Stand Rig',
-          actionType: 'pick',
-          targetComponentId: 'thrust_rig',
-          targetComponentName: 'Digital Load-Cell Thrust Stand Rig',
-          instruction: 'Locate "Digital Load-Cell Thrust Stand Rig" in the left components tray and drag it onto the ESD workbench. Tare strain gauge to 0.00g.',
-        },
-        {
-          stepNo: 2,
-          title: 'Fasten A2212 Motor & 1045 Carbon Propeller to Rig',
-          actionType: 'mount',
-          targetComponentId: 'bldc_motors',
-          targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
-          instruction: 'Bolt the "A2212 1000KV Brushless DC Motor" onto the pivoting thrust plate and secure the 1045 propeller with CNC bullet nut.',
-        },
-        {
-          stepNo: 3,
-          title: 'Connect 30A ESC & In-Line DC Power Analyzer Shunt',
-          actionType: 'wire',
-          targetComponentId: 'ammeter_shunt',
-          targetComponentName: '30A Precision DC Current Shunt & Wattmeter',
-          instruction: 'Wire "30A Precision DC Current Shunt & Wattmeter" in series between LiPo XT60 and SimonK ESC DC input terminals.',
-          connectionDiagram: {
-            from: '3S LiPo XT60 Male Connector',
-            to: '30A Current Shunt -> SimonK 30A ESC Input',
-            pinout: 'LiPo (+) -> Shunt IN (+), Shunt OUT (+) -> ESC Red (+); Common Battery Ground (-)',
-            wireColor: 'Positive: 14AWG Red Silicone, Negative: 14AWG Black Silicone',
-            schematicText: '[LiPo 11.1V] ---> [Current Shunt (ADC Ammeter)] ---> [30A ESC] ---> [A2212 Motor Phases]',
-          },
-        },
-        {
-          stepNo: 4,
-          title: 'Align Optical Laser Tachometer with Motor Bell Target',
-          actionType: 'mount',
-          targetComponentId: 'tachometer_opt',
-          targetComponentName: 'Optical Laser Digital Tachometer',
-          instruction: 'Position the "Optical Laser Digital Tachometer" directly facing the reflective sticker on the rotating motor outrunner bell.',
-        },
-      ],
-    },
-    4: {
-      expNo: 4,
-      title: 'Servo Motor Actuation & Angular Deflection Calibration',
-      aim: 'Calibrate servo horn angular travel, PWM pulse width (1000μs to 2000μs), and verify mechanical linkage linearity.',
-      steps: [
-        {
-          stepNo: 1,
-          title: 'Position 180° Precision Angular Deflection Protractor',
-          actionType: 'pick',
-          targetComponentId: 'protractor_dial',
-          targetComponentName: '180° Precision Angular Deflection Protractor',
-          instruction: 'Drag "180° Precision Angular Deflection Protractor" from the left tray onto the workbench mounting fixture.',
-        },
-        {
-          stepNo: 2,
-          title: 'Mount SG90 Micro Servo at Dial Center Pivot',
-          actionType: 'mount',
-          targetComponentId: 'servos_9g',
-          targetComponentName: 'SG90 9g Micro Servos & Linkages (x4)',
-          instruction: 'Mount "SG90 9g Micro Servos & Linkages (x4)" concentric with the protractor 0.0° center pivot reference mark.',
-        },
-        {
-          stepNo: 3,
-          title: 'Wire Servo 3-Pin JR Plug to Digital CCPM Servo Tester',
-          actionType: 'wire',
-          targetComponentId: 'servo_tester',
-          targetComponentName: 'Microprocessor 3-Channel Servo Tester',
-          instruction: 'Connect "Microprocessor 3-Channel Servo Tester" to servo 3-pin JR connector and supply 5.0V regulated power.',
-          connectionDiagram: {
-            from: 'CCPM Servo Tester OUT1 Header',
-            to: 'SG90 Micro Servo 3-Pin JR Connector',
-            pinout: 'Pin 1: PWM Signal (1000-2000μs) | Pin 2: +5.0V VCC | Pin 3: Ground (GND)',
-            wireColor: 'Signal: Orange wire, Power: Red wire, Ground: Brown wire',
-            schematicText: '[Servo Tester Pulse Gen] -> [Orange: PWM] -> [Internal Servo H-Bridge & Potentiometer]',
-          },
-        },
-      ],
-    },
-    5: {
-      expNo: 5,
-      title: 'LiPo Battery Multi-Cell Voltage & Discharge Diagnostic',
-      aim: 'Inspect individual cell internal resistance, balance multi-cell voltage (3.7V - 4.2V/cell), and assess C-rating discharge health.',
-      steps: [
-        {
-          stepNo: 1,
-          title: 'Place Turnigy 3S 2200mAh LiPo in Safety Bay',
-          actionType: 'pick',
           targetComponentId: 'lipo_3s',
           targetComponentName: 'Turnigy 3S 2200mAh 25C LiPo Battery',
-          instruction: 'Select "Turnigy 3S 2200mAh 25C LiPo Battery" and place securely into the fireproof ESD battery testing cradle.',
-        },
-        {
-          stepNo: 2,
-          title: 'Connect JST-XH Balance Lead to Digital Cell Checker',
-          actionType: 'wire',
-          targetComponentId: 'lipo_cell_checker',
-          targetComponentName: '1S-8S Digital LiPo Voltage Checker & Buzzer',
-          instruction: 'Connect "1S-8S Digital LiPo Voltage Checker & Buzzer" into 4-pin JST-XH balance lead. Record cell voltages (C1, C2, C3).',
+          instruction: 'Mount the LiPo battery under the belly tray with velcro strap and plug the main XT60 connector into the PDB harness.',
           connectionDiagram: {
-            from: 'LiPo JST-XH 4-Pin Female Balance Plug',
-            to: 'Digital Cell Checker Multi-Pin Input Socket',
-            pinout: 'Pin 1: Ground (Black) | Pin 2: Cell 1 (+3.7V) | Pin 3: Cell 2 (+7.4V) | Pin 4: Cell 3 (+11.1V)',
-            wireColor: 'Black (GND), Blue (Cell 1), Yellow (Cell 2), Red (Cell 3)',
-            schematicText: '[LiPo Cell 1: 3.70V] + [Cell 2: 3.70V] + [Cell 3: 3.70V] = [Pack Total: 11.10V Nominal]',
-          },
+            from: '3S LiPo Battery XT60 Female Plug (11.1V - 12.6V)',
+            to: 'Frame PDB XT60 Male Harness',
+            pinout: 'Flat side (+): Positive 11.1V (Red 14AWG), Pointed side (-): Ground (Black 14AWG)',
+            wireColor: 'Heavy-Duty Red 14AWG (+) & Black 14AWG (-)',
+            schematicText: '[LiPo 3S 2200mAh Pack] ──(XT60)──► [PDB Heavy Copper Rails] ──► [4x 30A ESC Power Inputs]'
+          }
         },
         {
-          stepNo: 3,
-          title: 'Connect XT60 Main Leads to IMAX B6 Balance Charger',
+          stepNo: 7,
+          title: 'Connect FS-iA6B 2.4GHz Receiver Channels',
           actionType: 'wire',
-          targetComponentId: 'lipo_charger_imax',
-          targetComponentName: 'IMAX B6 Microprocessor Balance Charger',
-          instruction: 'Connect "IMAX B6 Microprocessor Balance Charger" XT60 main leads and JST-XH balance port. Select LiPo Balance Charge at 2.2A.',
-          connectionDiagram: {
-            from: 'IMAX B6 4mm Banana Ports',
-            to: 'Turnigy LiPo XT60 Male Main Connector',
-            pinout: 'Red Banana (+) -> XT60 (+12V) | Black Banana (-) -> XT60 (GND)',
-            wireColor: '12AWG Heavy Duty Silicone Red (+) & Black (-)',
-            schematicText: '[IMAX B6 DC Charger] -> [Main XT60 High-Current Leads] & [3S JST-XH Balance Port]',
-          },
-        },
-      ],
-    },
-    6: {
-      expNo: 6,
-      title: '2.4GHz RC Transmitter & Receiver Binding & Signal Routing',
-      aim: 'Bind 2.4GHz AFHDS 2A frequency-hopping transmitter to receiver, calibrate 6 channel PWM mapping and failsafe state.',
-      steps: [
-        {
-          stepNo: 1,
-          title: 'Position FS-iA6B 6-Channel Receiver on Bench',
-          actionType: 'pick',
-          targetComponentId: 'rc_receiver',
+          targetComponentId: 'rc_receiver_ia6b',
           targetComponentName: 'FS-iA6B 6-Channel 2.4GHz Receiver',
-          instruction: 'From the left tray, drag the "FS-iA6B 6-Channel 2.4GHz Receiver" onto the workbench with antennas extended at 90° angles.',
-        },
-        {
-          stepNo: 2,
-          title: 'Insert Bind Jumper Loop Cable into B/VCC Port',
-          actionType: 'wire',
-          targetComponentId: 'bind_plug_loop',
-          targetComponentName: '2.4GHz Receiver Jumper Bind Plug Cable',
-          instruction: 'Insert "2.4GHz Receiver Jumper Bind Plug Cable" into the B/VCC port pins to pull receiver signal line to ground for binding.',
+          instruction: 'Plug 3-pin servo leads from Receiver Channels 1-4 (Aileron, Elevator, Throttle, Rudder) to the input header of the KK2.1.5 board.',
           connectionDiagram: {
-            from: 'Bind Jumper Loop Connector',
-            to: 'FS-iA6B Receiver Channel B/VCC Header',
-            pinout: 'Shorts Signal Pin (Top) to Ground Pin (Bottom) on B/VCC',
-            wireColor: 'Black insulated loop jumper wire with 3-pin 2.54mm female housing',
-            schematicText: '[B/VCC Signal Pin] <--- (Bind Loop Short) ---> [B/VCC GND Pin] -> Initiates 2.4GHz Pairing',
-          },
+            from: 'FS-iA6B Ch1-Ch4 3-Pin Headers (GND, VCC, Signal)',
+            to: 'KK2.1.5 Input Header (Pins 1 to 4: Ail, Ele, Thr, Rud)',
+            pinout: 'Pin 1: Signal (White), Pin 2: VCC +5V (Red), Pin 3: GND (Black)',
+            wireColor: 'Dupont 3-Wire Ribbon: Signal (White/Orange), 5V (Red), GND (Brown/Black)',
+            schematicText: '[FS-iA6B Receiver] ──(3-Pin PWM)──► [KK2.1.5 Inputs 1-4: Thr/Ail/Ele/Rud] ──► [Atmel ATMega644 MCU]'
+          }
         },
         {
-          stepNo: 3,
-          title: 'Power Transmitter Holding BIND Key to Lock Link',
-          actionType: 'execute',
-          targetComponentId: 'rc_transmitter_tx',
-          targetComponentName: 'FS-i6 6-Channel 2.4GHz Transmitter',
-          instruction: 'Drag "FS-i6 6-Channel 2.4GHz Transmitter" to bench. Power on transmitter while depressing BIND button until red LED turns solid.',
-        },
-      ],
-    },
-    7: {
-      expNo: 7,
-      title: 'Static & Dynamic Propeller Mass Balancing',
-      aim: 'Detect and correct static and dynamic mass imbalances on 1045 propellers using frictionless magnetic levitation suspension.',
-      steps: [
-        {
-          stepNo: 1,
-          title: 'Set Up Magnetic Levitation Balancer Stand',
-          actionType: 'pick',
-          targetComponentId: 'prop_balancer',
-          targetComponentName: 'Magnetic Levitation Propeller Balancer',
-          instruction: 'Drag "Magnetic Levitation Propeller Balancer" onto workbench and level on horizontal plane with zero mechanical friction.',
-        },
-        {
-          stepNo: 2,
-          title: 'Mount 1045 Propeller onto Centering Shaft',
+          stepNo: 8,
+          title: 'Install 1045 Propellers (CW & CCW Pair)',
           actionType: 'mount',
           targetComponentId: 'props_1045',
           targetComponentName: '1045 Carbon-Reinforced Propellers (x4)',
-          instruction: 'Mount "1045 Carbon-Reinforced Propellers (x4)" onto the hardened steel shaft with twin CNC aluminum centering cones.',
-        },
-        {
-          stepNo: 3,
-          title: 'Apply Mylar Counter-Balancing Tape to Light Blade',
-          actionType: 'wire',
-          targetComponentId: 'balance_tape',
-          targetComponentName: 'Precision Mylar Counter-Balancing Tape',
-          instruction: 'Apply thin strips of "Precision Mylar Counter-Balancing Tape" to the underside center of the light blade until propeller rests perfectly horizontal.',
-          connectionDiagram: {
-            from: 'Mylar Counter-Balancing Adhesive Strip',
-            to: '1045 Propeller Light Blade Underside (40% Span)',
-            pinout: 'Static balance: Center of Gravity aligned with rotation axis | Dynamic balance: Zero blade pitch flutter',
-            wireColor: 'Transparent aeronautical mylar thin-film tape (0.035 g/cm²)',
-            schematicText: '[Heavy Blade (drops down)] <=== (Counter-Weight Tape) ===> [Light Blade (equalized horizontal)]',
-          },
-        },
-      ],
+          instruction: 'Lock 1045 props onto motor shafts using nyloc prop nuts: Motor 1/3 (CCW pusher) & Motor 2/4 (CW tractor). Assembly complete!',
+        }
+      ]
     },
-    8: {
-      expNo: 8,
-      title: 'Subsonic Airfoil Wind Tunnel Lift & Drag Measurement',
-      aim: 'Measure pressure distributions, coefficient of lift (CL), coefficient of drag (CD) over symmetric and cambered airfoils in wind tunnel.',
+    2: {
+      expNo: 2,
+      title: 'Fixed-Wing Aircraft Structural Assembly & Control Linkages',
+      aim: 'Assemble EPO trainer airframe, insert high-strength carbon wing spar, install aileron/elevator micro-servos and mechanical pushrods.',
       steps: [
         {
           stepNo: 1,
-          title: 'Mount NACA 0012 Airfoil Model in Test Section',
+          title: 'Place Fixed-Wing EPO Trainer Fuselage',
+          actionType: 'pick',
+          targetComponentId: 'fixed_wing_airframe',
+          targetComponentName: 'Trainer Fixed-Wing EPO Airframe',
+          instruction: 'Drag the EPO Trainer Fuselage onto the ESD workbench.',
+        },
+        {
+          stepNo: 2,
+          title: 'Insert Carbon-Fiber Wing Spar Tube',
+          actionType: 'mount',
+          targetComponentId: 'wing_spar_carbon',
+          targetComponentName: 'High-Modulus Carbon Fiber Wing Spar Tube',
+          instruction: 'Slide the 10mm OD pultruded carbon spar through the fuselage wing bay to carry the bending moment of the wings.',
+        },
+        {
+          stepNo: 3,
+          title: 'Install SG90 Micro Servos in Wing & Tail Pockets',
+          actionType: 'mount',
+          targetComponentId: 'servos_9g',
+          targetComponentName: 'SG90 9g Micro Servos & Linkages (x4)',
+          instruction: 'Insert 4x SG90 servos into wing cutouts and vertical stabilizer for Aileron, Elevator, and Rudder control.',
+        },
+        {
+          stepNo: 4,
+          title: 'Fit Piano-Wire Pushrods to Nylon Control Horns',
+          actionType: 'wire',
+          targetComponentId: 'pushrod_linkage',
+          targetComponentName: 'Piano Wire Pushrods & Brass Clevises',
+          instruction: 'Connect 1.2mm steel pushrods from servo arms to aerodynamic surface horns with zero mechanical slop.',
+          connectionDiagram: {
+            from: 'Servo Output Arm Spline',
+            to: 'Aileron/Elevator Control Surface Nylon Horn',
+            pinout: 'Linkage Ratio: 1:1 Deflection (Hole 3 on servo arm -> Outer hole on surface horn)',
+            wireColor: '1.2mm High-Tensile Steel Wire with Threaded Clevis',
+            schematicText: '[Servo Motor (0-180°)] ──► [Servo Arm] ──► [Piano Wire Pushrod] ──► [Control Surface Horn] ──► [Aileron Flap]'
+          }
+        },
+        {
+          stepNo: 5,
+          title: 'Mount Tractor BLDC Motor & 1045 Propeller',
+          actionType: 'mount',
+          targetComponentId: 'bldc_motors',
+          targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
+          instruction: 'Bolt the A2212 motor to the nose firewall and tighten the 1045 propeller for propulsion thrust.',
+        }
+      ]
+    },
+    3: {
+      expNo: 3,
+      title: 'BLDC Motor & Propeller Thrust Calibration Bench',
+      aim: 'Calibrate static thrust (grams), rotational speed (RPM), and electrical power efficiency (g/W) using digital strain-gauge rig.',
+      steps: [
+        {
+          stepNo: 1,
+          title: 'Setup Linear Digital Thrust Stand Rig',
+          actionType: 'pick',
+          targetComponentId: 'thrust_rig',
+          targetComponentName: 'Digital Load-Cell Thrust Stand Rig',
+          instruction: 'Position the 5kg dual-rail thrust measurement stand on the ESD workbench.',
+        },
+        {
+          stepNo: 2,
+          title: 'Bolt A2212 1000KV Motor onto Sliding Carriage',
+          actionType: 'mount',
+          targetComponentId: 'bldc_motors',
+          targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
+          instruction: 'Mount the brushless outrunner motor rigidly onto the thrust stand carriage facing forward.',
+        },
+        {
+          stepNo: 3,
+          title: 'Wire SimonK 30A ESC to Digital Wattmeter Shunt',
+          actionType: 'wire',
+          targetComponentId: 'ammeter_shunt',
+          targetComponentName: '30A Precision DC Current Shunt & Wattmeter',
+          instruction: 'Connect the 30A ESC DC leads through the in-line digital wattmeter shunt to log voltage, current, and wattage.',
+          connectionDiagram: {
+            from: '3S LiPo XT60 Output',
+            to: 'In-Line 30A Current Shunt -> 30A ESC DC Terminals',
+            pinout: 'Shunt In (+/-) -> Shunt Out (+/-) -> ESC (Red/Black) -> 3-Phase to Motor',
+            wireColor: 'Heavy 14AWG Red (+) & Black (-) silicone leads',
+            schematicText: '[3S LiPo 11.1V] ──► [In-Line 30A Wattmeter Shunt] ──► [SimonK 30A ESC] ──► [3-Phase] ──► [BLDC Motor]'
+          }
+        },
+        {
+          stepNo: 4,
+          title: 'Align Optical Laser Tachometer with Propeller Hub',
+          actionType: 'mount',
+          targetComponentId: 'tachometer_opt',
+          targetComponentName: 'Optical Laser Digital Tachometer',
+          instruction: 'Align non-contact optical laser tachometer perpendicular to the propeller path to record optical RPM pulses.',
+        },
+        {
+          stepNo: 5,
+          title: 'Mount 1045 Carbon Propeller & Connect 3S LiPo',
+          actionType: 'wire',
+          targetComponentId: 'props_1045',
+          targetComponentName: '1045 Carbon-Reinforced Propellers (x4)',
+          instruction: 'Secure the 1045 propeller with locknut and connect the 3S 2200mAh LiPo. Ready for thrust calibration sweep!',
+        }
+      ]
+    },
+    4: {
+      expNo: 4,
+      title: 'Control Surface Deflection & Servo Angular Testing',
+      aim: 'Measure control surface angular deflection (degrees) versus PWM pulse width (microseconds) using servo tester and acrylic protractor.',
+      steps: [
+        {
+          stepNo: 1,
+          title: 'Place CCPM Microprocessor Servo Tester',
+          actionType: 'pick',
+          targetComponentId: 'servo_tester',
+          targetComponentName: 'Microprocessor 3-Channel Servo Tester',
+          instruction: 'Place the CCPM Servo Tester on the bench to supply adjustable 1000 - 2000μs PWM signals.',
+        },
+        {
+          stepNo: 2,
+          title: 'Connect SG90 9g Micro Servo to Tester Output Ch 1',
+          actionType: 'wire',
+          targetComponentId: 'servos_9g',
+          targetComponentName: 'SG90 9g Micro Servos & Linkages (x4)',
+          instruction: 'Plug the 3-wire servo connector into Channel 1 of the servo tester.',
+          connectionDiagram: {
+            from: 'SG90 3-Pin Female Plug (Brown/Red/Orange)',
+            to: 'Servo Tester Output Header Pin 1',
+            pinout: 'Pin 1 (Orange): PWM Signal (1.0 - 2.0ms), Pin 2 (Red): +5V DC, Pin 3 (Brown): GND',
+            wireColor: 'Orange (PWM), Red (+5V), Brown (GND)',
+            schematicText: '[Servo Tester (1000-2000μs PWM)] ──(3-Pin Header)──► [SG90 Potentiometer Feedback Servo (0-180°)]'
+          }
+        },
+        {
+          stepNo: 3,
+          title: 'Mount 180° Precision Angular Protractor Dial',
+          actionType: 'mount',
+          targetComponentId: 'protractor_dial',
+          targetComponentName: '180° Precision Angular Deflection Protractor',
+          instruction: 'Align the protractor dial with the servo output shaft centerline to measure angular displacement.',
+        },
+        {
+          stepNo: 4,
+          title: 'Attach Pointer Needle Linkage & Calibrate Neutral (1500μs)',
+          actionType: 'mount',
+          targetComponentId: 'pushrod_linkage',
+          targetComponentName: 'Piano Wire Pushrods & Brass Clevises',
+          instruction: 'Attach pointer needle to servo arm and verify 90° center alignment at 1500μs neutral pulse.',
+        }
+      ]
+    },
+    5: {
+      expNo: 5,
+      title: 'LiPo Battery Chemistry, Discharge Rates & Smart Balancing',
+      aim: 'Analyze per-cell voltage, IR internal resistance, and balance charging using IMAX B6 microprocessor charger.',
+      steps: [
+        {
+          stepNo: 1,
+          title: 'Place Turnigy 3S 2200mAh 25C LiPo Battery',
+          actionType: 'pick',
+          targetComponentId: 'lipo_3s',
+          targetComponentName: 'Turnigy 3S 2200mAh 25C LiPo Battery',
+          instruction: 'Place the 3-cell 11.1V LiPo battery on the fireproof ESD workbench mat.',
+        },
+        {
+          stepNo: 2,
+          title: 'Connect 1S-8S Digital Cell Voltage Checker',
+          actionType: 'wire',
+          targetComponentId: 'lipo_checker',
+          targetComponentName: 'Digital 1S-8S Battery Cell Voltage Checker & Buzzer',
+          instruction: 'Plug JST-XH 4-pin balance connector into the cell checker to verify Cell 1, 2, and 3 voltage matching.',
+          connectionDiagram: {
+            from: 'LiPo JST-XH 4-Pin Balance Lead',
+            to: '1S-8S Digital Checker Balance Port (Pin 1 to Pin 4)',
+            pinout: 'Pin 1: Ground (Black), Pin 2: Cell 1 (3.7-4.2V), Pin 3: Cell 2 (7.4-8.4V), Pin 4: Cell 3 (11.1-12.6V)',
+            wireColor: '1x Black (Common GND), 3x Colored individual cell taps',
+            schematicText: '[Cell 1: 3.7V] + [Cell 2: 3.7V] + [Cell 3: 3.7V] ──(JST-XH Lead)──► [Microcontroller ADC Volt Checker]'
+          }
+        },
+        {
+          stepNo: 3,
+          title: 'Connect IMAX B6 Smart Balance Charger via XT60 & JST-XH',
+          actionType: 'wire',
+          targetComponentId: 'lipo_charger_b6',
+          targetComponentName: 'IMAX B6 80W Microprocessor Balance Charger',
+          instruction: 'Connect XT60 main power banana leads and the JST-XH balance lead to the IMAX B6 charger for CC/CV balance charging.',
+        }
+      ]
+    },
+    6: {
+      expNo: 6,
+      title: 'RC Transmitter & Receiver Calibration & Failsafe Binding',
+      aim: 'Bind 2.4GHz FlySky FS-i6 transmitter to FS-iA6B receiver, calibrate gimbals, and configure throttle cut failsafe.',
+      steps: [
+        {
+          stepNo: 1,
+          title: 'Position FS-iA6B 6-Channel 2.4GHz Receiver',
+          actionType: 'pick',
+          targetComponentId: 'rc_receiver_ia6b',
+          targetComponentName: 'FS-iA6B 6-Channel 2.4GHz Receiver',
+          instruction: 'Place the FS-iA6B receiver on the workbench with dual diversity antennas at 90° orientation.',
+        },
+        {
+          stepNo: 2,
+          title: 'Insert Bind Plug into B/VCC Port',
+          actionType: 'wire',
+          targetComponentId: 'bind_plug',
+          targetComponentName: 'FlySky 2.4GHz Receiver Bind Plug Jumper',
+          instruction: 'Insert the bind plug jumper into the B/VCC port to ground the bind key line and enter binding mode.',
+          connectionDiagram: {
+            from: 'Bind Plug Jumper (2-Pin Bridge)',
+            to: 'Receiver Port B/VCC (Pin 1 Signal & Pin 3 GND)',
+            pinout: 'Shorts Signal pin to Ground pin to force AFHDS 2A pairing on power-up',
+            wireColor: 'Black looped jumper wire',
+            schematicText: '[Receiver Port B/VCC] ──(Shorts Signal to GND)──► [RF Chipset Enters AFHDS 2A Pair Mode (Fast LED Flash)]'
+          }
+        },
+        {
+          stepNo: 3,
+          title: 'Power Receiver with 5V Regulated BEC',
+          actionType: 'wire',
+          targetComponentId: 'esc_30a',
+          targetComponentName: 'SimonK 30A High-Speed ESCs (x4)',
+          instruction: 'Plug 5V BEC power from ESC into Channel 1 to power up the receiver in bind mode (fast flashing LED).',
+        },
+        {
+          stepNo: 4,
+          title: 'Power FS-i6 Transmitter while Holding BIND Key',
+          actionType: 'execute',
+          targetComponentId: 'rc_transmitter_tx',
+          targetComponentName: 'FS-i6 6-Channel 2.4GHz Transmitter',
+          instruction: 'Hold the BIND key and power ON the FS-i6 transmitter. Solid receiver LED confirms successful AFHDS 2A telemetry link!',
+        }
+      ]
+    },
+    7: {
+      expNo: 7,
+      title: 'Propeller Static & Dynamic Balancing Protocol',
+      aim: 'Identify blade mass imbalance and blade tracking errors using magnetic suspension balancer, applying balancing tape to eliminate vibration.',
+      steps: [
+        {
+          stepNo: 1,
+          title: 'Assemble Magnetic Suspension Balancer Stand',
+          actionType: 'pick',
+          targetComponentId: 'magnetic_balancer',
+          targetComponentName: 'High-Precision Magnetic Suspension Propeller Balancer',
+          instruction: 'Set up the frictionless magnetic balancer with rare-earth neodymium magnetic suspension cones.',
+        },
+        {
+          stepNo: 2,
+          title: 'Mount 1045 Propeller onto Centering Spindle',
+          actionType: 'mount',
+          targetComponentId: 'props_1045',
+          targetComponentName: '1045 Carbon-Reinforced Propellers (x4)',
+          instruction: 'Slide the 1045 propeller onto the tapered spindle, tighten thumbscrews, and float between the magnetic poles.',
+        },
+        {
+          stepNo: 3,
+          title: 'Observe Heavy Blade Dip & Apply Balancing Tape',
+          actionType: 'mount',
+          targetComponentId: 'balancing_tape',
+          targetComponentName: 'Aeronautical Balancing Tape & 600-Grit Sandpaper',
+          instruction: 'Note which blade drops due to gravity. Apply aeronautical tape to the underside of the lighter blade until the prop balances horizontally!',
+        }
+      ]
+    },
+    8: {
+      expNo: 8,
+      title: 'Subsonic Wind Tunnel Aerodynamic Lift & Drag Testing',
+      aim: 'Measure pressure distribution along Clark-Y / NACA airfoil surface and calculate lift coefficient (CL) and drag coefficient (CD) at various AoA.',
+      steps: [
+        {
+          stepNo: 1,
+          title: 'Mount NACA 0012 / Clark-Y Airfoil in Test Section',
           actionType: 'pick',
           targetComponentId: 'airfoil_naca',
           targetComponentName: 'Subsonic Wing Airfoil Section (NACA 0012 / Clark-Y)',
-          instruction: 'Drag "Subsonic Wing Airfoil Section (NACA 0012 / Clark-Y)" onto the wind tunnel balance pivot at 0.0° incidence.',
+          instruction: 'Mount the airfoil model between the optical glass walls of the wind tunnel test section on the angle-of-attack rotary mount.',
         },
         {
           stepNo: 2,
@@ -887,363 +944,543 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'pitot_tube',
           targetComponentName: 'Pitot-Static Tube Differential Airspeed Probe',
-          instruction: 'Mount "Pitot-Static Tube Differential Airspeed Probe" 1 chord length upstream of wing leading edge parallel to flow axis.',
+          instruction: 'Align the pitot-static tube upstream of the airfoil to measure free-stream dynamic pressure (q = 1/2 * rho * V^2).',
         },
         {
           stepNo: 3,
-          title: 'Connect Pressure Taps to Inclined U-Tube Manometer',
+          title: 'Connect Pressure Taps to Multi-Tube Water Manometer',
           actionType: 'wire',
           targetComponentId: 'manometer_water',
           targetComponentName: 'Inclined U-Tube Water Differential Manometer',
-          instruction: 'Connect flexible tubing from "Inclined U-Tube Water Differential Manometer" to dynamic and static pressure ports on airfoil model.',
+          instruction: 'Run flexible silicone tubing from upper and lower airfoil surface pressure orifices to the inclined water manometer board.',
           connectionDiagram: {
-            from: 'Pitot-Static Tube Dynamic & Static Ports',
-            to: 'Inclined U-Tube Water Manometer Multi-Column Bank',
-            pinout: 'Port 1 (Total Pressure Pt) -> Manometer Limb A | Port 2 (Static Pressure P0) -> Manometer Limb B',
-            wireColor: 'Clear medical-grade flexible silicone pressure tubing (3mm ID)',
-            schematicText: '[Dynamic Pressure q = Pt - P0 = 1/2 * ρ * V²] -> [Manometer Fluid Height Displacement Δh]',
-          },
-        },
-      ],
+            from: 'Airfoil Surface Pressure Orifices (P1 to P12)',
+            to: 'Inclined Water Manometer Tube Array (H2O rho = 1000 kg/m3)',
+            pinout: 'Port 1-6: Upper Surface Suction Side, Port 7-12: Lower Surface Pressure Side',
+            wireColor: 'Transparent 2mm Silicone Pressure Tubing',
+            schematicText: '[Airfoil Upper Surface Taps] ──► [Manometer Limbs (mmH2O Deflection)] ──► [Delta-P = rho * g * delta-h] ──► [Cp Distribution]'
+          }
+        }
+      ]
     },
     9: {
       expNo: 9,
-      title: 'Complete Quadcopter-X Airframe & Power Harness Integration',
-      aim: 'Fully integrate mechanical chassis, solder PDB power harness, install motors, ESCs, flight controller, and perform continuity checks.',
+      title: 'Complete Quadcopter Systems Integration & Pre-Flight Check',
+      aim: 'Full hardware integration of F450 frame, BLDC motors, ESCs, KK2.1.5 board, 3S LiPo, and FS-iA6B receiver into a flight-ready UAV.',
       steps: [
         {
           stepNo: 1,
-          title: 'Assemble F450 Dual Plates with Integrated PDB',
+          title: 'Mount F450 Carbon-Fiber Center Frame Plates',
           actionType: 'pick',
           targetComponentId: 'frame_f450',
           targetComponentName: 'F450 Quad-X Carbon Frame Plates',
-          instruction: 'Drag "F450 Quad-X Carbon Frame Plates" onto workbench and fasten with 4x PA66 arm struts.',
+          instruction: 'Place the F450 main structural frame onto the assembly table.',
         },
         {
           stepNo: 2,
-          title: 'Solder 14AWG XT60 Main Power Cable to PDB Rails',
-          actionType: 'wire',
-          targetComponentId: 'pdb_xt60',
-          targetComponentName: 'Integrated PDB & XT60 Power Harness',
-          instruction: 'Solder "Integrated PDB & XT60 Power Harness" (14AWG Red + / Black -) to central copper bus pads of bottom PCB plate.',
-          connectionDiagram: {
-            from: 'XT60 Male Main Battery Harness',
-            to: 'F450 Integrated Power Distribution Board Central Bus',
-            pinout: 'Positive Wire (Red 14AWG) -> PDB +12V Pad | Negative Wire (Black 14AWG) -> PDB GND Pad',
-            wireColor: 'Heavy duty 14AWG heat-resistant silicone wire (+ Red, - Black)',
-            schematicText: '[3S LiPo XT60] ---> [Central PDB Solder Bus (+/-)] ---> [4x Arm ESC Power Rails]',
-          },
+          title: 'Bolt PA66 Quadcopter Arms (Red Forward / White Rear)',
+          actionType: 'mount',
+          targetComponentId: 'arms_f450',
+          targetComponentName: 'F450 High-Strength Arm Struts (x4)',
+          instruction: 'Bolt all 4 arms with red forward orientation to ensure high-visibility pilot heading tracking.',
         },
         {
           stepNo: 3,
-          title: 'Mount 4x A2212 Motors & Connect ESC 3-Phase Jacks',
+          title: 'Mount 4x A2212 1000KV BLDC Motors on Arm Tips',
           actionType: 'mount',
           targetComponentId: 'bldc_motors',
           targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
-          instruction: 'Bolt "A2212 1000KV Brushless DC Motors (x4)" to arm tips and connect SimonK ESC 3.5mm gold bullet plugs.',
+          instruction: 'Fasten motors to arm ends: Motor 1 (Front Right CCW), Motor 2 (Rear Right CW), Motor 3 (Rear Left CCW), Motor 4 (Front Left CW).',
         },
         {
           stepNo: 4,
-          title: 'Route ESC Servo Signal Leads to KK2.1.5 M1-M4 Headers',
+          title: 'Connect 4x 30A SimonK ESCs to Integrated PDB Rails',
+          actionType: 'wire',
+          targetComponentId: 'esc_30a',
+          targetComponentName: 'SimonK 30A High-Speed ESCs (x4)',
+          instruction: 'Connect motor wires to ESC bullet jacks and power leads to PDB terminals with correct positive/negative polarity.',
+          connectionDiagram: {
+            from: 'PDB 11.1V Power Rails',
+            to: '4x SimonK 30A ESCs',
+            pinout: '4x Pair (+ / -) 11.1V -> ESC DC In; 4x 3-Wire PWM -> KK2.1.5 Motor Outputs M1-M4',
+            wireColor: 'Red (+11.1V), Black (GND), 3-Wire Servo (PWM, +5V, GND)',
+            schematicText: '[PDB Central Rail] ──► [4x ESCs] ──► [4x BLDC Motors (M1 CCW, M2 CW, M3 CCW, M4 CW)]'
+          }
+        },
+        {
+          stepNo: 5,
+          title: 'Mount KK2.1.5 Flight Controller & Connect M1-M4 ESC Signals',
           actionType: 'wire',
           targetComponentId: 'fc_kk215',
-          targetComponentName: 'KK 2.1.5 LCD Flight Controller Board',
-          instruction: 'Connect "KK 2.1.5 LCD Flight Controller Board" M1-M4 motor outputs (M1: Front-Left CW, M2: Front-Right CCW, M3: Rear-Right CW, M4: Rear-Left CCW).',
-          connectionDiagram: {
-            from: 'SimonK 30A ESC 1-4 Signal Servo Cables',
-            to: 'KK2.1.5 Motor Output Headers M1, M2, M3, M4',
-            pinout: 'M1: Front-Left | M2: Front-Right | M3: Rear-Right | M4: Rear-Left (Signal White, VCC Red, GND Black)',
-            wireColor: 'Standard 3-pin JR servo ribbon cables',
-            schematicText: '[KK2.1.5 Atmel 644PA MCU] -> [M1-M4 PWM 400Hz Timers] -> [4x SimonK 30A ESC Gate Drivers]',
-          },
+          targetComponentName: 'KK2.1.5 Multi-Rotor Flight Controller',
+          instruction: 'Mount KK2.1.5 on rubber bobbins and plug ESC signal leads into Motor Outputs M1, M2, M3, and M4.',
         },
-      ],
+        {
+          stepNo: 6,
+          title: 'Plug In Turnigy 3S 2200mAh LiPo via XT60 Connector',
+          actionType: 'wire',
+          targetComponentId: 'lipo_3s',
+          targetComponentName: 'Turnigy 3S 2200mAh 25C LiPo Battery',
+          instruction: 'Secure LiPo under the belly and connect the XT60 plug to energize all electronics.',
+        },
+        {
+          stepNo: 7,
+          title: 'Install 1045 Carbon Propellers & Verify Pre-Arm Readiness',
+          actionType: 'mount',
+          targetComponentId: 'props_1045',
+          targetComponentName: '1045 Carbon-Reinforced Propellers (x4)',
+          instruction: 'Thread on 1045 CW and CCW props. Pre-flight hardware assembly is 100% complete and flight ready!',
+        }
+      ]
     },
     10: {
       expNo: 10,
-      title: 'Flight Controller Sensor Alignment & Gyroscope Calibration',
-      aim: 'Calibrate InvenSense MPU6050 6-axis gyro/accelerometer, perform sensor zero-offset calibration, and tune PID stability loops.',
+      title: 'KK2.1.5 Flight Controller Sensor Calibration & Firmware Upload',
+      aim: 'Calibrate on-board MPU6050 6-axis gyro/accelerometer, tune PID stabilization loops (P-gain, I-gain), and program motor mixer via USBasp.',
       steps: [
         {
           stepNo: 1,
-          title: 'Mount KK2.1.5 Board on Anti-Vibration Dampers',
+          title: 'Place KK2.1.5 LCD Flight Control Board',
           actionType: 'pick',
           targetComponentId: 'fc_kk215',
-          targetComponentName: 'KK 2.1.5 LCD Flight Controller Board',
-          instruction: 'Drag "KK 2.1.5 LCD Flight Controller Board" onto workbench anti-vibration silicone dampers with nose arrow facing forward.',
+          targetComponentName: 'KK2.1.5 Multi-Rotor Flight Controller',
+          instruction: 'Place the KK2.1.5 controller on the anti-static mat with access to buttons and ISP header.',
         },
         {
           stepNo: 2,
-          title: 'Verify InvenSense MPU6050 6-Axis IMU Sensor Alignment',
-          actionType: 'mount',
-          targetComponentId: 'mpu6050_sensor',
-          targetComponentName: 'InvenSense MPU6050 6-Axis Gyro & Accel Module',
-          instruction: 'Mount "InvenSense MPU6050 6-Axis Gyro & Accel Module" verifying orientation: X-axis forward (Pitch), Y-axis right (Roll), Z-axis upward (Yaw).',
-        },
-        {
-          stepNo: 3,
-          title: 'Connect USB AVR-ISP Programmer Ribbon Cable for Telemetry',
+          title: 'Connect USBasp 6-Pin ISP Programmer Ribbon Cable',
           actionType: 'wire',
           targetComponentId: 'usb_programmer',
           targetComponentName: 'USB AVR-ISP Programmer Dongle & Ribbon Cable',
-          instruction: 'Connect "USB AVR-ISP Programmer Dongle & Ribbon Cable" from USBasp dongle to KK2.1.5 6-pin ISP programming header.',
+          instruction: 'Connect the 6-pin AVR-ISP header cable to the Atmel ATmega644PA programming port with Pin 1 alignment.',
           connectionDiagram: {
-            from: 'USBasp AVR-ISP 6-Pin Ribbon Cable',
-            to: 'KK2.1.5 Board In-Circuit Serial Programming Header',
-            pinout: 'Pin 1: MISO | Pin 2: VCC (+5V) | Pin 3: SCK | Pin 4: MOSI | Pin 5: RESET | Pin 6: GND',
-            wireColor: 'Gray 6-conductor flat ribbon cable with keyed IDC 2.54mm connector',
-            schematicText: '[USBasp PC Dongle] -> [SPI Bus (MOSI/MISO/SCK)] -> [Atmel 644PA Flash EEPROM & IMU Registers]',
-          },
+            from: 'USBasp 6-Pin Programmer Dongle (USB 5V)',
+            to: 'KK2.1.5 AVR ISP Header (MOSI, MISO, SCK, RESET, VCC, GND)',
+            pinout: 'Pin 1: MISO, Pin 2: VCC (+5V), Pin 3: SCK, Pin 4: MOSI, Pin 5: RESET, Pin 6: GND',
+            wireColor: '6-Conductor Gray Ribbon Cable with Red Stripe on Pin 1',
+            schematicText: '[PC USB Port] ──► [USBasp 12MHz AVR ISP] ──(6-Pin Ribbon)──► [KK2.1.5 Atmel ATmega644PA SPI Port]'
+          }
         },
-      ],
-    },
+        {
+          stepNo: 3,
+          title: 'Verify MPU6050 6-Axis Motion Sensor Telemetry Bus',
+          actionType: 'mount',
+          targetComponentId: 'mpu6050_sensor',
+          targetComponentName: 'InvenSense MPU6050 6-Axis Gyro & Accel Module',
+          instruction: 'Inspect I2C bus signals (SCL, SDA) between MPU6050 and the ATmega644PA MCU to verify accelerometer level calibration.',
+        }
+      ]
+    }
   }), []);
 
   const activeGuide = experimentGuides[selectedExpNo] || experimentGuides[1];
   const activeExpSteps = activeGuide.steps;
   const currentCompletedSteps = completedSteps[selectedExpNo] || [];
-  const isExpFullyAssembled = currentCompletedSteps.length === activeExpSteps.length;
+
+  // Determine the next step required in the procedure
   const nextExpectedStep = activeExpSteps.find((s) => !currentCompletedSteps.includes(s.stepNo));
+  const isExpFullyAssembled = currentCompletedSteps.length === activeExpSteps.length;
 
-  // Start a New Assembly Project with custom name
-  const handleStartNewProject = (expNo: number, customName?: string) => {
-    if (customName && customName.trim()) {
-      setProjectName(customName.trim());
-    } else if (tempProjectName.trim()) {
-      setProjectName(tempProjectName.trim());
-    }
-    setSelectedExpNo(expNo);
-    setHasActiveProject(true);
-    setShowNewProjectModal(false);
-    setShowWelcomeProjectModal(false);
-    setIsTestRunning(false);
-    setTestThrottle(0);
-    setValidationAlert(null);
-    setShowOutputModal(false);
+  // Filter components by search and category
+  const filteredComponents = useMemo(() => {
+    return components.filter((item) => {
+      const matchCat = activeCategory === 'All' || item.category === activeCategory;
+      const matchSearch =
+        searchQuery === '' ||
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.model.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchCat && matchSearch;
+    });
+  }, [components, activeCategory, searchQuery]);
 
-    // Reset components to unmounted for this new project
-    setComponents((prev) =>
-      prev.map((c) => ({
-        ...c,
-        installed: false,
-      }))
-    );
-  };
+  // Total installed weight
+  const totalInstalledWeight = useMemo(() => {
+    return components.filter((c) => c.installed).reduce((acc, c) => acc + c.weightG, 0);
+  }, [components]);
 
-  // CORE DRAG-AND-DROP ASSEMBLY LOGIC WITH RED/GREEN FEEDBACK
-  const handleDropComponent = (componentId: string) => {
-    setIsDropHover(false);
-
+  // Handle Drag & Drop Component Validation (Green / Red feedback)
+  const handleDropComponent = (droppedCompId: string) => {
     if (!hasActiveProject) {
       setValidationAlert({
         type: 'error',
-        title: 'NO ACTIVE PROJECT!',
-        message: 'Please click "CREATE NEW PROJECT" first and select an experiment before dropping components.',
-        componentName: 'Workbench',
+        title: 'NO PROJECT ACTIVE',
+        message: 'Please initialize an assembly project first before placing parts.',
+        componentName: 'Workbench Locked',
       });
       return;
     }
 
-    const comp = components.find((c) => c.id === componentId);
-    if (!comp) return;
-
-    if (!nextExpectedStep) {
+    if (isExpFullyAssembled) {
       setValidationAlert({
         type: 'success',
-        title: 'ASSEMBLY ALREADY 100% COMPLETE!',
-        message: `All steps for Experiment ${selectedExpNo} are completed. Click "RUN & EXECUTE EXPERIMENT" to test!`,
-        componentName: comp.name,
+        title: 'ASSEMBLY COMPLETE',
+        message: 'All procedure components are installed! Click "RUN & EXECUTE EXPERIMENT" to test.',
+        componentName: 'Ready for Test',
       });
       return;
     }
 
-    // CHECK IF WRONG COMPONENT OR WRONG SEQUENCE
-    if (nextExpectedStep.targetComponentId !== componentId) {
+    const component = components.find((c) => c.id === droppedCompId);
+    if (!component) return;
+
+    if (nextExpectedStep && nextExpectedStep.targetComponentId === droppedCompId) {
+      // CORRECT COMPONENT: Green Success Feedback
+      setComponents((prev) =>
+        prev.map((c) => (c.id === droppedCompId ? { ...c, installed: true } : c))
+      );
+
+      const updatedCompleted = [...currentCompletedSteps, nextExpectedStep.stepNo];
+      setCompletedSteps((prev) => ({
+        ...prev,
+        [selectedExpNo]: updatedCompleted,
+      }));
+
+      const isNowFullyDone = updatedCompleted.length === activeExpSteps.length;
+
+      setValidationAlert({
+        type: 'success',
+        title: 'AUTOCAD ASSEMBLY SNAPPED',
+        message: isNowFullyDone
+          ? `✓ SUCCESS: Final part "${component.name}" mounted! Assembly is 100% complete and ready to execute.`
+          : `✓ SUCCESS: "${component.name}" snapped into CAD position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
+        componentName: component.name,
+      });
+
+      // If finished, switch tab to procedure so user sees Execute button
+      if (isNowFullyDone) {
+        setRightPanelTab('procedure');
+      }
+    } else {
+      // WRONG COMPONENT: Red Error Feedback
+      const expectedPart = nextExpectedStep?.targetComponentName || 'the next procedure component';
       setValidationAlert({
         type: 'error',
-        title: 'WRONG COMPONENT / INCORRECT SEQUENCE!',
-        message: `❌ Wrong component placed! "${comp.name}" does not match Step ${nextExpectedStep.stepNo} in the procedure. Please read the procedure on the right panel and place the correct component.`,
-        componentName: comp.name,
+        title: 'WRONG COMPONENT SELECTED',
+        message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You selected "${component.name}". Follow procedure on the right!`,
+        componentName: component.name,
       });
-      return;
     }
 
-    // CORRECT COMPONENT! FLASH BRIGHT GREEN
-    setValidationAlert({
-      type: 'success',
-      title: 'CORRECT COMPONENT PLACED SUCCESSFULLY!',
-      message: `✓ Correct component placed! Step ${nextExpectedStep.stepNo} completed: "${nextExpectedStep.title}". Moving to next step >>>`,
-      componentName: comp.name,
-    });
-
-    // Mark step completed
-    setCompletedSteps((prev) => ({
-      ...prev,
-      [selectedExpNo]: [...(prev[selectedExpNo] || []), nextExpectedStep.stepNo],
-    }));
-
-    // Mount in 3D scene
-    setComponents((prev) =>
-      prev.map((c) => (c.id === componentId ? { ...c, installed: true } : c))
-    );
+    // Auto-dismiss alert after 4.5 seconds
+    setTimeout(() => {
+      setValidationAlert(null);
+    }, 4500);
   };
 
-  // Run and execute the experiment simulation
+  // Start / Create New Project Flow
+  const handleStartNewProject = (expNum: number, customName?: string) => {
+    setSelectedExpNo(expNum);
+    setProjectName(customName?.trim() || tempProjectName.trim() || `UAV Assembly - EX ${expNum}`);
+    setCompletedSteps((prev) => ({
+      ...prev,
+      [expNum]: [],
+    }));
+    setComponents((prev) => prev.map((c) => ({ ...c, installed: false })));
+    setValidationAlert(null);
+    setIsTestRunning(false);
+    setTestThrottle(0);
+    setExplodeRatio(0);
+    setHasActiveProject(true);
+    setRightPanelTab('procedure');
+  };
+
+  // Switch AutoCAD Camera View Presets
+  const setCameraPreset = (view: 'iso' | 'top' | 'front' | 'side') => {
+    setActiveCameraView(view);
+    if (!orbitControlsRef.current) return;
+
+    if (view === 'iso') {
+      orbitControlsRef.current.object.position.set(4, 3.5, 5);
+      orbitControlsRef.current.target.set(0, 0.2, 0);
+    } else if (view === 'top') {
+      orbitControlsRef.current.object.position.set(0, 7, 0.001);
+      orbitControlsRef.current.target.set(0, 0, 0);
+    } else if (view === 'front') {
+      orbitControlsRef.current.object.position.set(0, 1.2, 5.5);
+      orbitControlsRef.current.target.set(0, 0.4, 0);
+    } else if (view === 'side') {
+      orbitControlsRef.current.object.position.set(5.5, 1.2, 0);
+      orbitControlsRef.current.target.set(0, 0.4, 0);
+    }
+    orbitControlsRef.current.update();
+  };
+
+  // Run and Execute Experiment
   const handleRunAndExecute = () => {
     setIsTestRunning(true);
-    setTestThrottle(60);
+    setTestThrottle(70);
     setShowOutputModal(true);
   };
 
-  // Take screenshot of the assembly / results
-  const handleCaptureResult = async () => {
-    setIsCapturingScreenshot(true);
-    await captureScreenshot(workbenchRef.current, selectedExpNo);
-    setIsCapturingScreenshot(false);
-  };
-
-  // Filtered components list based on Category and Search Query
-  // Note: NO "forExperiments" filtering in components tray as requested! Neutral hardware library.
-  const filteredComponents = components.filter((c) => {
-    const matchesCategory = activeCategory === 'All' || c.category === activeCategory;
-    const matchesSearch =
-      searchQuery.trim() === '' ||
-      c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.specs.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.model.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.category.toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesCategory && matchesSearch;
-  });
-
-  // Calculate total weight of mounted parts
-  const totalInstalledWeight = components
-    .filter((c) => c.installed)
-    .reduce((sum, c) => sum + c.weightG, 0);
-
-  // Dynamic readings during physical test
+  // Dynamic Test Calculations
   const testRPM = Math.round(testThrottle * 98);
-  const testThrustG = Math.round((testThrottle / 100) ** 1.8 * 880);
-  const testCurrentA = Math.round((testThrottle / 100) * 12.8 * 10) / 10;
-  const testVoltageV = Math.round((11.8 - (testCurrentA / 15) * 0.8) * 10) / 10;
-  const testPowerW = Math.round(testCurrentA * testVoltageV);
-  const testEfficiencyGW = testPowerW > 0 ? (testThrustG / testPowerW).toFixed(2) : '0.00';
+  const testThrustG = Math.round(testThrottle * 8.4);
+  const testVoltageV = (11.1 - (testThrottle * 0.008)).toFixed(2);
+  const testCurrentA = (testThrottle * 0.12).toFixed(2);
+  const testPowerW = (parseFloat(testVoltageV) * parseFloat(testCurrentA)).toFixed(1);
+  const testEfficiencyGW = parseFloat(testPowerW) > 0 ? (testThrustG / parseFloat(testPowerW)).toFixed(2) : '0.00';
 
+  // =========================================================================
+  // VIEW 1: WELCOME TO AERO-SPACE LAB SCREEN (When no project is open)
+  // =========================================================================
+  if (!hasActiveProject) {
+    return (
+      <div className="fixed inset-0 z-40 flex flex-col items-center justify-between bg-[#030612] text-slate-100 overflow-y-auto font-sans select-none p-4 sm:p-8">
+        
+        {/* Background Cyber Starfield & Glowing Grids */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0c1f4e] via-[#050b1d] to-[#01040a] pointer-events-none"></div>
+
+        {/* Holographic Glowing Perspective Grid */}
+        <div 
+          className="absolute inset-0 opacity-25 pointer-events-none"
+          style={{
+            backgroundImage: `
+              linear-gradient(to right, rgba(6, 182, 212, 0.25) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(6, 182, 212, 0.25) 1px, transparent 1px)
+            `,
+            backgroundSize: '40px 40px',
+            maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 85%)'
+          }}
+        />
+
+        {/* Ambient Neon Glows */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/25 rounded-full blur-[140px] pointer-events-none animate-pulse"></div>
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-500/25 rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+
+        {/* Top Header Badge */}
+        <div className="relative z-10 pt-4 flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/15 text-cyan-300 text-xs sm:text-sm font-mono font-bold border border-cyan-400/50 mb-3 shadow-[0_0_20px_rgba(6,182,212,0.4)] backdrop-blur-md">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+            <Wrench className="w-4 h-4 text-amber-300 animate-spin" style={{ animationDuration: '10s' }} />
+            <span className="tracking-widest uppercase">3D AUTOCAD HARDWARE INTEGRATION WORKBENCH</span>
+          </div>
+
+          {/* WELCOME TO AERO-SPACE LAB TITLE WITH BRIGHT GLOWING ANIMATION */}
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-tight">
+            <span className="block text-cyan-400 font-mono text-base sm:text-xl font-bold tracking-widest mb-1 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">
+              WELCOME TO
+            </span>
+            <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_45px_rgba(6,182,212,0.9)] animate-pulse">
+              AERO - SPACE LAB
+            </span>
+            <span className="block mt-1 text-xl sm:text-2xl md:text-3xl font-mono text-amber-400 font-black tracking-wider drop-shadow-[0_0_20px_rgba(245,158,11,0.8)]">
+              ( 3D VIRTUAL ASSEMBLY BENCH )
+            </span>
+          </h1>
+
+          <p className="mt-2 text-xs sm:text-sm text-slate-300 max-w-xl font-mono">
+            Drag-and-drop 3D hardware components, circuit wiring schematics, and realistic AutoCAD-style object manipulation.
+          </p>
+        </div>
+
+        {/* Center: Live 3D Interactive Rotating CAD Preview */}
+        <div className="relative z-10 w-full max-w-xl h-44 sm:h-52 my-3 rounded-2xl border border-cyan-500/30 bg-slate-950/60 backdrop-blur-md overflow-hidden shadow-[0_0_35px_rgba(6,182,212,0.2)]">
+          <Canvas camera={{ position: [0, 2.5, 4], fov: 45 }}>
+            <ambientLight intensity={1.2} />
+            <directionalLight position={[5, 8, 5]} intensity={2.0} />
+            <group rotation={[0.2, 0, 0]}>
+              <QuadcopterModel scale={0.9} spinning={true} throttle={4} showWiring={true} />
+            </group>
+            <OrbitControls autoRotate autoRotateSpeed={2.0} enableZoom={false} />
+          </Canvas>
+          <div className="absolute bottom-2 left-3 text-[10px] font-mono text-cyan-400 flex items-center gap-1.5 bg-black/60 px-2 py-0.5 rounded border border-cyan-500/20">
+            <Crosshair className="w-3 h-3 text-cyan-400" />
+            <span>Interactive 3D CAD Preview</span>
+          </div>
+        </div>
+
+        {/* BOTTOM: CREATE NEW PROJECT & SAVE AS (AS REQUESTED BY USER) */}
+        <div className="relative z-10 w-full max-w-4xl rounded-2xl bg-gradient-to-br from-[#0a1226]/95 via-[#060b18]/95 to-[#030610]/95 border-2 border-amber-400/80 p-5 sm:p-6 shadow-[0_0_50px_rgba(245,158,11,0.5)] font-mono mb-4">
+          
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-amber-500/30 pb-3 mb-4 gap-2">
+            <div className="flex items-center gap-2">
+              <FolderPlus className="w-5 h-5 text-amber-400" />
+              <h2 className="text-sm sm:text-base font-black text-white tracking-wider">
+                CREATE NEW PROJECT & INITIALIZE WORKSPACE
+              </h2>
+            </div>
+            <span className="text-[11px] text-amber-300">
+              Select Ex No (1 to 10) & Choose Custom Project Name
+            </span>
+          </div>
+
+          {/* PROJECT NAME (SAVE AS) INPUT */}
+          <div className="mb-4">
+            <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
+              <span>PROJECT NAME (SAVE AS):</span>
+              <span className="text-amber-400 text-[10px] font-normal">*Customizable</span>
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. F450 Quadcopter Integration, Fixed-Wing Assembly, Thrust Rig Calibration..."
+              value={tempProjectName}
+              onChange={(e) => setTempProjectName(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border-2 border-cyan-500/40 text-amber-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-400 placeholder-slate-500 shadow-inner"
+            />
+          </div>
+
+          {/* EXPERIMENT SELECTOR GRID (EX 1 TO EX 10) */}
+          <label className="block text-xs font-bold text-slate-200 mb-2">
+            SELECT EXPERIMENT TO ASSEMBLE:
+          </label>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-h-44 sm:max-h-52 overflow-y-auto p-1 custom-scrollbar mb-4">
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+              const guide = experimentGuides[num];
+              const isSelected = selectedExpNo === num;
+              return (
+                <button
+                  key={num}
+                  onClick={() => setSelectedExpNo(num)}
+                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                    isSelected
+                      ? 'bg-amber-500/25 border-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] ring-1 ring-amber-400'
+                      : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-cyan-400/60 hover:text-slate-200'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-[11px] font-black ${isSelected ? 'text-amber-300' : 'text-cyan-400'}`}>
+                      EX {num}
+                    </span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/40 text-slate-400">
+                      {guide?.steps.length} Steps
+                    </span>
+                  </div>
+                  <div className="text-[10px] line-clamp-2 leading-tight">
+                    {guide?.title}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* INITIALIZE WORKSPACE BUTTON */}
+          <button
+            onClick={() => handleStartNewProject(selectedExpNo, tempProjectName)}
+            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-cyan-400 hover:from-amber-300 hover:to-cyan-300 text-slate-950 font-black text-sm tracking-widest shadow-[0_0_30px_rgba(245,158,11,0.6)] transition-all cursor-pointer transform hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 border border-white/50"
+          >
+            <span>ENTER EMPTY CAD WORKSPACE (EX {selectedExpNo})</span>
+            <ArrowRight className="w-4 h-4 text-slate-950" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW 2: FULL-PAGE CAD 3D WORKSPACE WITH DOCKED RIGHT PANELS
+  // =========================================================================
   return (
     <div 
       ref={workbenchRef} 
-      className={`h-full flex flex-col bg-[#040713] text-slate-100 overflow-hidden font-sans relative ${
+      className={`h-full w-full flex flex-col bg-[#02050f] text-slate-100 overflow-hidden font-sans relative ${
         isFullscreenWorkbench ? 'fixed inset-0 z-50 w-screen h-screen' : ''
       }`}
     >
-      
-      {/* TOP NAVIGATION BAR: NEW PROJECT, FULLSCREEN, DAY/NIGHT & SCREENSHOT */}
-      <div className="bg-[#080d1f] border-b border-cyan-500/30 p-2.5 px-3 sm:px-4 flex flex-wrap items-center justify-between gap-2.5 shrink-0 z-20 shadow-md">
+      {/* 1. TOP AutoCAD CAD TOOLBAR */}
+      <div className="bg-[#070c1e]/95 backdrop-blur-md border-b border-cyan-500/30 p-2 sm:px-3 flex flex-wrap items-center justify-between gap-2 shrink-0 z-20 shadow-lg text-xs font-mono">
         
-        {/* Left: Project Creation CTA */}
+        {/* Project Name & New Project Button */}
         <div className="flex items-center gap-2">
           <button
-            onClick={() => {
-              setTempProjectName(projectName);
-              setShowNewProjectModal(true);
-            }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 font-black text-xs font-mono shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all active:scale-95 cursor-pointer"
-            title="Create an empty workspace for a new laboratory experiment"
+            onClick={() => setHasActiveProject(false)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/60 font-bold transition-all cursor-pointer shrink-0"
+            title="Create or load a new assembly project"
           >
-            <FolderPlus className="w-4 h-4 text-slate-950" />
+            <FolderPlus className="w-3.5 h-3.5 text-amber-400" />
             <span>NEW PROJECT</span>
           </button>
 
-          {hasActiveProject ? (
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-lg bg-cyan-950/40 border border-cyan-500/30 text-xs font-mono">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-              <span className="text-amber-300 font-bold uppercase tracking-wider">PROJECT: "{projectName}"</span>
-              <span className="text-cyan-300 font-bold">| EX {selectedExpNo}</span>
-              <span className="text-[10px] text-slate-400 hidden md:inline">({activeGuide.title})</span>
-            </div>
-          ) : (
-            <div className="text-xs text-slate-400 font-mono hidden sm:inline">
-              (Empty Workbench • Click "NEW PROJECT" to begin)
-            </div>
-          )}
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-300 shrink-0">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+            <span className="text-amber-300 font-bold max-w-[140px] sm:max-w-[200px] truncate" title={projectName}>
+              {projectName}
+            </span>
+            <span className="text-cyan-400 font-bold">| EX {selectedExpNo}</span>
+          </div>
         </div>
 
-        {/* Center: Experiment Switcher (If Project Active) */}
-        {hasActiveProject && (
-          <div className="flex items-center gap-1 overflow-x-auto py-0.5 max-w-full custom-scrollbar">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-              <button
-                key={num}
-                onClick={() => handleStartNewProject(num)}
-                className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold transition-all shrink-0 cursor-pointer ${
-                  selectedExpNo === num
-                    ? 'bg-amber-400 text-slate-950 shadow-sm'
-                    : 'bg-slate-900 text-slate-400 hover:text-white'
-                }`}
-              >
-                EX {num}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Right: Big Screen Fullscreen Toggle, Day/Night, Screenshot */}
-        <div className="flex items-center gap-2">
-          {/* Day / Night Switcher */}
-          <div className="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-cyan-500/30 text-xs font-mono">
+        {/* AutoCAD 3D Camera Angle Presets */}
+        <div className="hidden md:flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
+          <span className="text-[10px] text-slate-400 px-1.5">VIEW:</span>
+          {(['iso', 'top', 'front', 'side'] as const).map((view) => (
             <button
-              onClick={() => setBenchTimeMode('day')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                isDay ? 'bg-amber-400 text-slate-950 font-bold shadow-sm' : 'text-slate-400 hover:text-white'
+              key={view}
+              onClick={() => setCameraPreset(view)}
+              className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                activeCameraView === view
+                  ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                  : 'text-slate-400 hover:text-white'
               }`}
             >
-              <Sun className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">DAY</span>
+              {view}
             </button>
-            <button
-              onClick={() => setBenchTimeMode('night')}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md transition-all cursor-pointer ${
-                !isDay ? 'bg-cyan-500 text-slate-950 font-bold shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              <Moon className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">NIGHT</span>
-            </button>
-          </div>
+          ))}
+        </div>
 
-          {/* BIG SCREEN / FULLSCREEN LAPTOP WORKSPACE TOGGLE */}
+        {/* CAD Tools: Explode View Slider */}
+        <div className="hidden lg:flex items-center gap-2 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 text-[11px]">
+          <span className="text-slate-400">EXPLODE:</span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={explodeRatio}
+            onChange={(e) => setExplodeRatio(parseFloat(e.target.value))}
+            className="w-20 accent-cyan-400 cursor-pointer"
+          />
+          <span className="text-cyan-300 font-bold">{Math.round(explodeRatio * 100)}%</span>
+        </div>
+
+        {/* Right Tools: Day/Night, Big Screen & Toggle Right Dock */}
+        <div className="flex items-center gap-1.5">
+          {/* Day / Night Toggle */}
           <button
-            onClick={() => setIsFullscreenWorkbench(!isFullscreenWorkbench)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border cursor-pointer ${
-              isFullscreenWorkbench
-                ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-glow-cyan'
-                : 'bg-slate-900 hover:bg-slate-800 text-cyan-300 border-cyan-500/40'
+            onClick={() => setBenchTimeMode(isDay ? 'night' : 'day')}
+            className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] cursor-pointer ${
+              isDay ? 'bg-amber-400/20 text-amber-300 border-amber-400/50' : 'bg-slate-900 text-cyan-300 border-cyan-500/30'
             }`}
-            title="Toggle Big Screen Fullscreen Workbench (Full laptop/computer screen)"
+            title="Switch Day / Night Lighting"
           >
-            {isFullscreenWorkbench ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isFullscreenWorkbench ? 'Exit Big Screen' : 'Big Screen'}</span>
+            {isDay ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-cyan-400" />}
+            <span className="hidden sm:inline">{isDay ? 'Day' : 'Night'}</span>
           </button>
 
-          {/* Screenshot Button */}
+          {/* Big Screen Fullscreen Toggle */}
           <button
-            onClick={handleCaptureResult}
-            disabled={isCapturingScreenshot}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold cursor-pointer transition-all active:scale-95"
-            title="Take High-Resolution Screenshot of Bench"
+            onClick={() => setIsFullscreenWorkbench(!isFullscreenWorkbench)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 text-[11px] cursor-pointer"
+            title="Full Page Workspace Viewport"
           >
-            <Camera className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden sm:inline">Screenshot</span>
+            {isFullscreenWorkbench ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{isFullscreenWorkbench ? 'Exit Full' : 'Full Screen'}</span>
+          </button>
+
+          {/* Toggle Right Dock Button */}
+          <button
+            onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
+              isRightPanelOpen 
+                ? 'bg-cyan-500 text-slate-950 border-cyan-400 shadow-glow-cyan' 
+                : 'bg-slate-900 text-cyan-300 border-cyan-500/40'
+            }`}
+            title="Toggle Right Side Components & Procedure Dock"
+          >
+            {isRightPanelOpen ? <PanelRightClose className="w-3.5 h-3.5" /> : <PanelRightOpen className="w-3.5 h-3.5" />}
+            <span>{isRightPanelOpen ? 'Hide Dock' : 'Show Dock'}</span>
           </button>
         </div>
       </div>
 
-      {/* REAL-TIME RED / GREEN FLASH BANNER */}
+      {/* REAL-TIME RED / GREEN FLASH BANNER AT TOP OF WORKSPACE */}
       {validationAlert && (
-        <div className={`p-3 px-4 border-b flex items-center justify-between gap-3 text-xs font-mono transition-all z-30 animate-in slide-in-from-top duration-300 ${
+        <div className={`absolute top-12 left-4 right-4 z-40 p-3 px-4 rounded-xl border flex items-center justify-between gap-3 text-xs font-mono transition-all shadow-2xl animate-in slide-in-from-top-4 duration-300 backdrop-blur-md ${
           validationAlert.type === 'success'
-            ? 'bg-emerald-950/95 border-emerald-400 text-emerald-200 shadow-[0_0_30px_rgba(16,185,129,0.6)]'
-            : 'bg-rose-950/95 border-rose-500 text-rose-200 shadow-[0_0_30px_rgba(244,63,94,0.7)] animate-pulse'
+            ? 'bg-emerald-950/95 border-emerald-400 text-emerald-200 shadow-[0_0_35px_rgba(16,185,129,0.7)]'
+            : 'bg-rose-950/95 border-rose-500 text-rose-200 shadow-[0_0_35px_rgba(244,63,94,0.8)] animate-pulse'
         }`}>
           <div className="flex items-center gap-2.5">
             {validationAlert.type === 'success' ? (
@@ -1267,631 +1504,604 @@ export const HardwareWorkbenchView: React.FC = () => {
         </div>
       )}
 
-      {/* WELCOME TO AERO-SPACE LAB & CREATE PROJECT MODAL */}
-      {(showNewProjectModal || showWelcomeProjectModal) && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
-          <div className="relative max-w-xl w-full rounded-2xl bg-gradient-to-br from-[#0c142c] via-[#080e22] to-[#040816] border-2 border-amber-400 p-6 shadow-[0_0_70px_rgba(245,158,11,0.6)] font-mono text-slate-100 overflow-hidden">
-            
-            {/* Corner Ambient Glows */}
-            <div className="absolute -top-16 -left-16 w-48 h-48 bg-cyan-500/20 rounded-full blur-2xl pointer-events-none"></div>
-            <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-amber-500/20 rounded-full blur-2xl pointer-events-none"></div>
+      {/* 2. FULL-PAGE 3D CAD CANVAS (Covers entire screen, first completely empty!) */}
+      <div 
+        className="flex-1 relative w-full h-full overflow-hidden"
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDropHover(true);
+        }}
+        onDragLeave={() => setIsDropHover(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setIsDropHover(false);
+          const compId = e.dataTransfer.getData('text/plain');
+          if (compId) handleDropComponent(compId);
+        }}
+      >
+        <Canvas shadows className="w-full h-full">
+          <PerspectiveCamera makeDefault position={[4, 3.5, 5]} fov={45} />
+          <ambientLight intensity={isDay ? 1.4 : 0.6} />
+          <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.2 : 1.4} castShadow />
+          <pointLight position={[0, 4, 0]} intensity={0.9} color={isDay ? '#ffffff' : '#00f0ff'} />
 
-            <div className="flex items-center justify-between border-b border-amber-500/30 pb-3 mb-4">
-              <div className="flex items-center gap-2.5">
-                <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-400/40">
-                  <Wrench className="w-5 h-5" />
+          {!isDay && (
+            <Stars radius={100} depth={50} count={2500} factor={4} saturation={0.5} fade speed={1} />
+          )}
+
+          {/* ESD Workbench Surface */}
+          <mesh position={[0, -0.05, 0]} receiveShadow>
+            <boxGeometry args={[14, 0.1, 9]} />
+            <meshStandardMaterial
+              color={isDay ? '#475569' : '#0a1226'}
+              roughness={isDay ? 0.5 : 0.7}
+              metalness={isDay ? 0.3 : 0.4}
+            />
+          </mesh>
+
+          {/* AutoCAD CAD Grid with fine millimeter divisions */}
+          <Grid
+            position={[0, 0.01, 0]}
+            args={[12, 8]}
+            cellSize={0.5}
+            cellThickness={0.8}
+            cellColor={isDay ? '#64748b' : '#1e3a5f'}
+            sectionSize={2}
+            sectionThickness={1.4}
+            sectionColor={isDay ? '#0284c7' : '#00f0ff'}
+            fadeDistance={25}
+          />
+
+          {/* 3D Coordinate Triad Axes Indicator in CAD Space */}
+          <group position={[-5, 0.05, -3]}>
+            {/* X Axis - Red */}
+            <mesh position={[0.5, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+              <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
+              <meshBasicMaterial color="#ef4444" />
+            </mesh>
+            {/* Y Axis - Green */}
+            <mesh position={[0, 0.5, 0]}>
+              <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
+              <meshBasicMaterial color="#10b981" />
+            </mesh>
+            {/* Z Axis - Blue */}
+            <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
+              <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
+              <meshBasicMaterial color="#3b82f6" />
+            </mesh>
+          </group>
+
+          {/* PROGRESSIVE MOUNTING: ONLY SHOW INSTALLED HARDWARE (Empty first!) */}
+          {currentCompletedSteps.length > 0 && (
+            <>
+              {/* EX 1 & 9: Quadcopter-X Model Builds Up Progressively */}
+              {(selectedExpNo === 1 || selectedExpNo === 9) && (
+                <group position={[0, 0.1 + explodeRatio * 0.4, 0]}>
+                  <QuadcopterModel
+                    scale={1.2}
+                    spinning={isTestRunning && testThrottle > 0}
+                    throttle={testThrottle / 10}
+                    explodedFactor={explodeRatio}
+                    showWiring={currentCompletedSteps.includes(4)}
+                  />
+                </group>
+              )}
+
+              {/* EX 2: Fixed-Wing Model */}
+              {selectedExpNo === 2 && (
+                <group position={[0, 0.4 + explodeRatio * 0.5, 0]}>
+                  <FixedWingModel
+                    scale={0.9}
+                    spinning={isTestRunning && testThrottle > 0}
+                    throttle={testThrottle}
+                    explodedFactor={explodeRatio}
+                  />
+                </group>
+              )}
+
+              {/* EX 3: Thrust Stand Rig */}
+              {selectedExpNo === 3 && (
+                <group position={[0, 0, 0]}>
+                  <mesh position={[0, 0.25, 0]}>
+                    <boxGeometry args={[1.8, 0.5, 3.2]} />
+                    <meshStandardMaterial color={isDay ? '#64748b' : '#1e293b'} metalness={0.7} roughness={0.3} />
+                  </mesh>
+                  {currentCompletedSteps.includes(2) && (
+                    <group position={[0, 0.65, -0.5]}>
+                      <BLDCMotorModel scale={1.2} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} />
+                      {currentCompletedSteps.includes(5) && (
+                        <group position={[0, 0.45, 0]}>
+                          <PropellerModel scale={1.1} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} blades={2} />
+                        </group>
+                      )}
+                    </group>
+                  )}
+                  {currentCompletedSteps.includes(3) && (
+                    <group position={[-0.5, 0.55, 0.6]}>
+                      <ESCModel scale={0.8} ampRating={30} />
+                    </group>
+                  )}
+                  {currentCompletedSteps.includes(4) && (
+                    <group position={[0.4, 0.55, 0.6]}>
+                      <LiPoBatteryModel scale={0.75} cells={3} />
+                    </group>
+                  )}
+                </group>
+              )}
+
+              {/* EX 4: Servo Protractor */}
+              {selectedExpNo === 4 && (
+                <group position={[0, 0.1, 0]}>
+                  <group position={[0, 0.3, 0]}>
+                    <ServoMotorModel scale={1.8} angle={activeServoAngle} />
+                  </group>
+                  <mesh position={[0, 0.05, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[1.2, 1.6, 32, 1, 0, Math.PI]} />
+                    <meshStandardMaterial color="#f59e0b" metalness={0.5} roughness={0.5} />
+                  </mesh>
+                </group>
+              )}
+
+              {/* EX 5: LiPo & IMAX B6 */}
+              {selectedExpNo === 5 && (
+                <group position={[0, 0.1, 0]}>
+                  <group position={[-1.0, 0.2, 0]}>
+                    <LiPoBatteryModel scale={1.3} cells={3} />
+                  </group>
+                  {currentCompletedSteps.includes(3) && (
+                    <group position={[1.0, 0.2, 0]}>
+                      <mesh>
+                        <boxGeometry args={[1.8, 0.4, 1.3]} />
+                        <meshStandardMaterial color="#2563eb" metalness={0.8} roughness={0.3} />
+                      </mesh>
+                    </group>
+                  )}
+                </group>
+              )}
+
+              {/* EX 6: RC Transmitter & Receiver */}
+              {selectedExpNo === 6 && (
+                <group position={[0, 0.2, 0]}>
+                  <group position={[-1.2, 0.8, 0]} rotation={[0.4, 0, 0]}>
+                    <mesh>
+                      <boxGeometry args={[1.6, 2.0, 0.6]} />
+                      <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
+                    </mesh>
+                  </group>
+                  <group position={[1.2, 0.2, 0]}>
+                    <mesh>
+                      <boxGeometry args={[0.9, 0.3, 0.6]} />
+                      <meshStandardMaterial color="#0f172a" />
+                    </mesh>
+                  </group>
+                </group>
+              )}
+
+              {/* EX 7: Prop Balancer */}
+              {selectedExpNo === 7 && (
+                <group position={[0, 0, 0]}>
+                  <BalanceStandModel scale={1.2} />
+                  {currentCompletedSteps.includes(2) && (
+                    <group position={[0, 1.45, 0]}>
+                      <PropellerModel scale={1.3} spinning={false} rpm={0} blades={2} />
+                    </group>
+                  )}
+                </group>
+              )}
+
+              {/* EX 8: Wind Tunnel Airfoil */}
+              {selectedExpNo === 8 && (
+                <group position={[0, 0.4, 0]}>
+                  <mesh rotation={[0, 0, 0.15]}>
+                    <boxGeometry args={[0.2, 1.2, 3.0]} />
+                    <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
+                  </mesh>
+                </group>
+              )}
+
+              {/* EX 10: KK2.1.5 Board */}
+              {selectedExpNo === 10 && (
+                <group position={[0, 0.2 + explodeRatio * 0.3, 0]}>
+                  <KK215BoardModel scale={1.5} />
+                </group>
+              )}
+            </>
+          )}
+
+          <OrbitControls ref={orbitControlsRef} enableDamping dampingFactor={0.05} />
+        </Canvas>
+
+        {/* CAD WORKSPACE EMPTY STATE CALLOUT */}
+        {currentCompletedSteps.length === 0 && (
+          <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center pointer-events-none">
+            <div className="p-4 rounded-2xl bg-[#091024]/90 border border-cyan-500/40 max-w-sm shadow-xl backdrop-blur-md">
+              <Crosshair className="w-8 h-8 text-cyan-400 mx-auto mb-2 animate-pulse" />
+              <h3 className="text-xs font-bold font-mono text-white mb-1">
+                CAD WORKSPACE READY (EMPTY)
+              </h3>
+              <p className="text-[11px] text-slate-300 font-mono leading-relaxed">
+                Step 1: Pick <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the right dock and place it here.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Drag & Drop Hover Overlay */}
+        {isDropHover && (
+          <div className="absolute inset-0 bg-cyan-500/20 backdrop-blur-xs flex flex-col items-center justify-center pointer-events-none z-30 animate-pulse border-4 border-dashed border-cyan-400">
+            <Move className="w-12 h-12 text-cyan-300 mb-2 animate-bounce" />
+            <span className="text-base font-black text-cyan-200 font-mono tracking-widest uppercase">
+              DROP COMPONENT HERE TO ASSEMBLE
+            </span>
+          </div>
+        )}
+
+        {/* 3. RIGHT-SIDE FLOATING / DOCKED PANEL: 3D COMPONENTS & PROCEDURE WITH CIRCUIT DIAGRAM */}
+        {isRightPanelOpen && (
+          <div className="absolute top-3 right-3 bottom-3 w-80 sm:w-96 md:w-[420px] bg-[#070b18]/95 backdrop-blur-md rounded-2xl border-2 border-cyan-500/40 shadow-[0_0_40px_rgba(6,182,212,0.3)] flex flex-col z-30 overflow-hidden font-mono text-xs">
+            
+            {/* Dock Header Tabs: [ 📦 3D COMPONENTS ] vs [ 📋 PROCEDURE & CIRCUITS ] */}
+            <div className="p-2 border-b border-cyan-500/30 bg-[#091126] flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setRightPanelTab('procedure')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    rightPanelTab === 'procedure'
+                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>PROCEDURE</span>
+                </button>
+
+                <button
+                  onClick={() => setRightPanelTab('components')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    rightPanelTab === 'components'
+                      ? 'bg-cyan-500 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Box className="w-3.5 h-3.5" />
+                  <span>3D COMPONENTS</span>
+                </button>
+              </div>
+
+              <button
+                onClick={() => setIsRightPanelOpen(false)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                title="Collapse Dock"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* TAB CONTENT A: 3D COMPONENTS SECTION (REALISTIC 3D MODELS OF OBJECTS) */}
+            {rightPanelTab === 'components' && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                {/* Search & Category Filter */}
+                <div className="p-3 border-b border-slate-800 flex flex-col gap-2 bg-[#050914] shrink-0">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      placeholder="Search 3D components (motor, esc, frame...)"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-1 overflow-x-auto text-[10px] pb-0.5 custom-scrollbar">
+                    {['All', 'Mechanical', 'Propulsion', 'Avionics', 'Power', 'Wires & Linkages'].map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => setActiveCategory(cat)}
+                        className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap cursor-pointer ${
+                          activeCategory === cat ? 'bg-cyan-600 text-white font-bold' : 'bg-slate-900 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {cat}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-base sm:text-lg font-black text-white tracking-wide">
-                    WELCOME TO AERO-SPACE LAB
+
+                {/* 3D Component Cards List */}
+                <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
+                  {filteredComponents.map((item) => (
+                    <div
+                      key={item.id}
+                      draggable={!item.installed}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', item.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
+                      className={`p-2.5 rounded-xl border transition-all flex gap-3 cursor-grab active:cursor-grabbing select-none ${
+                        item.installed
+                          ? 'bg-emerald-950/30 border-emerald-500/40 opacity-75'
+                          : 'bg-slate-900/80 border-slate-800 hover:border-cyan-400/60'
+                      }`}
+                    >
+                      {/* Realistic 3D Miniature Model */}
+                      <Component3DThumbnail visualType={item.visualType} isInstalled={item.installed} />
+
+                      {/* Component Info */}
+                      <div className="flex-1 flex flex-col justify-between min-w-0">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-white text-[11px] truncate">
+                              {item.name}
+                            </span>
+                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 font-mono shrink-0 ml-1">
+                              {item.weightG}g
+                            </span>
+                          </div>
+                          <p className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">{item.model}</p>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[8px] text-slate-500 uppercase tracking-wider">
+                            {item.category}
+                          </span>
+
+                          {item.installed ? (
+                            <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Placed
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleDropComponent(item.id)}
+                              className="px-2.5 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[9px] shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
+                              title="Click or drag to place onto workspace"
+                            >
+                              <Move className="w-2.5 h-2.5" />
+                              <span>Place Part</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-2 border-t border-slate-800 bg-[#040814] flex items-center justify-between text-[11px] shrink-0">
+                  <span className="text-slate-400">BENCH HARDWARE WEIGHT:</span>
+                  <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
+                </div>
+              </div>
+            )}
+
+            {/* TAB CONTENT B: PROCEDURE & CIRCUIT CONNECTION DIAGRAMS */}
+            {rightPanelTab === 'procedure' && (
+              <div className="flex-1 flex flex-col overflow-y-auto p-3 space-y-3 custom-scrollbar">
+                
+                {/* Experiment Aim & Step Progress */}
+                <div className="border-b border-slate-800 pb-2.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
+                      EXPERIMENT {activeGuide.expNo}
+                    </span>
+                    <span className="text-[10px] text-cyan-400 font-bold">
+                      {currentCompletedSteps.length} / {activeExpSteps.length} Steps
+                    </span>
+                  </div>
+
+                  <h3 className="text-xs font-bold text-white leading-snug">
+                    {activeGuide.title}
                   </h3>
-                  <p className="text-[11px] text-amber-300/80 font-normal">
-                    Virtual Hardware Integration & Physical 3D Assembly Workbench
+
+                  <p className="mt-1 text-[10px] text-slate-400 leading-relaxed">
+                    <strong>AIM:</strong> {activeGuide.aim}
                   </p>
+
+                  <div className="mt-2 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.round((currentCompletedSteps.length / activeExpSteps.length) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* RUN & EXECUTE EXPERIMENT BUTTON */}
+                <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex flex-col gap-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400 font-bold">ASSEMBLY STATUS:</span>
+                    <span className={isExpFullyAssembled ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                      {isExpFullyAssembled ? 'READY TO EXECUTE' : `STEP ${nextExpectedStep?.stepNo || 1} PENDING`}
+                    </span>
+                  </div>
+
+                  <button
+                    onClick={handleRunAndExecute}
+                    disabled={!isExpFullyAssembled}
+                    className={`w-full py-2.5 rounded-xl font-black text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                      isExpFullyAssembled
+                        ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.5)] active:scale-95'
+                        : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
+                    }`}
+                  >
+                    <Play className="w-3.5 h-3.5 fill-current" />
+                    <span>RUN & EXECUTE EXPERIMENT</span>
+                  </button>
+                </div>
+
+                {/* STEP-BY-STEP PROCEDURE LIST WITH CIRCUIT DIAGRAMS */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>STEP-BY-STEP PROCEDURE</span>
+                  </h4>
+
+                  {activeExpSteps.map((step) => {
+                    const isStepDone = currentCompletedSteps.includes(step.stepNo);
+                    const isCurrent = step.stepNo === nextExpectedStep?.stepNo;
+
+                    return (
+                      <div
+                        key={step.stepNo}
+                        className={`p-3 rounded-xl border transition-all flex flex-col gap-2 ${
+                          isStepDone
+                            ? 'bg-emerald-950/20 border-emerald-500/50 text-slate-300'
+                            : isCurrent
+                            ? 'bg-[#0b1733] border-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)] ring-1 ring-amber-400/40'
+                            : 'bg-slate-900/60 border-slate-800 text-slate-400'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-[11px] flex items-center gap-2">
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              isStepDone 
+                                ? 'bg-emerald-500 text-slate-950' 
+                                : isCurrent
+                                ? 'bg-amber-400 text-slate-950 animate-bounce'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}>
+                              {isStepDone ? '✓' : step.stepNo}
+                            </span>
+                            <span>{step.title}</span>
+                          </span>
+
+                          {isCurrent && (
+                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
+                              NEXT &gt;&gt;&gt;
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-[10px] text-slate-300 leading-relaxed">
+                          {step.instruction}
+                        </p>
+
+                        {/* CONNECTION CIRCUIT DIAGRAM & PINOUT (IF ANY) */}
+                        {step.connectionDiagram && (
+                          <div className="p-2.5 rounded-xl bg-slate-950/90 border border-cyan-500/30 text-[9px] space-y-1">
+                            <div className="font-bold text-amber-300 flex items-center justify-between">
+                              <span className="flex items-center gap-1">
+                                <Cable className="w-3 h-3 text-cyan-400" />
+                                <span>CIRCUIT SCHEMATIC & WIRING:</span>
+                              </span>
+                              <button
+                                onClick={() => setActiveSchematicModal({
+                                  title: step.title,
+                                  ...step.connectionDiagram!
+                                })}
+                                className="text-cyan-400 hover:text-cyan-300 underline font-bold cursor-pointer"
+                              >
+                                View Diagram
+                              </button>
+                            </div>
+                            <div className="text-cyan-300">
+                              <strong>From:</strong> {step.connectionDiagram.from}
+                            </div>
+                            <div className="text-cyan-300">
+                              <strong>To:</strong> {step.connectionDiagram.to}
+                            </div>
+                            <div className="text-slate-300 bg-slate-900 p-1 rounded border border-slate-800 font-mono text-[8px]">
+                              {step.connectionDiagram.schematicText}
+                            </div>
+                            <div className="text-slate-400">
+                              <strong>Pinout:</strong> {step.connectionDiagram.pinout}
+                            </div>
+                            <div className="text-slate-400">
+                              <strong>Wires:</strong> {step.connectionDiagram.wireColor}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action CTA */}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[9px] text-slate-400 truncate max-w-[180px]">
+                            Target: {step.targetComponentName}
+                          </span>
+
+                          <button
+                            onClick={() => handleDropComponent(step.targetComponentId)}
+                            disabled={isStepDone}
+                            className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold font-mono transition-transform active:scale-95 flex items-center gap-1 cursor-pointer ${
+                              isStepDone
+                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30 cursor-default'
+                                : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-glow-cyan'
+                            }`}
+                          >
+                            {isStepDone ? (
+                              <>
+                                <CheckCheck className="w-3 h-3 text-emerald-400" />
+                                <span>Mounted</span>
+                              </>
+                            ) : (
+                              <>
+                                <Move className="w-2.5 h-2.5" />
+                                <span>Place Part</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 4. CIRCUIT DIAGRAM FULL SCHEMATIC MODAL */}
+      {activeSchematicModal && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="max-w-xl w-full rounded-2xl bg-gradient-to-br from-[#0a1226] via-[#060b18] to-[#02050f] border-2 border-cyan-400 p-6 shadow-[0_0_50px_rgba(6,182,212,0.5)] font-mono text-xs">
+            <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4">
+              <div className="flex items-center gap-2 text-cyan-300 font-bold text-sm">
+                <Cable className="w-5 h-5 text-cyan-400" />
+                <span>CIRCUIT CONNECTION SCHEMATIC</span>
+              </div>
+              <button
+                onClick={() => setActiveSchematicModal(null)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div className="p-3 rounded-xl bg-slate-900/90 border border-slate-800">
+                <div className="text-amber-400 font-bold text-xs mb-1">
+                  {activeSchematicModal.title}
+                </div>
+                <div className="text-cyan-300 text-[11px]">
+                  <strong>Source:</strong> {activeSchematicModal.from}
+                </div>
+                <div className="text-cyan-300 text-[11px]">
+                  <strong>Destination:</strong> {activeSchematicModal.to}
                 </div>
               </div>
 
-              {hasActiveProject && (
-                <button
-                  onClick={() => {
-                    setShowNewProjectModal(false);
-                    setShowWelcomeProjectModal(false);
-                  }}
-                  className="text-slate-400 hover:text-white p-1 rounded-lg bg-slate-900 border border-slate-800 text-xs cursor-pointer"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
+              {/* Graphical Schematic Box */}
+              <div className="p-4 rounded-xl bg-slate-950 border-2 border-dashed border-cyan-500/50 text-cyan-200 text-center font-mono text-xs leading-relaxed shadow-inner">
+                {activeSchematicModal.schematicText}
+              </div>
 
-            {/* Custom Project Name (Save As) Input as requested by user! */}
-            <div className="mb-4">
-              <label className="block text-xs font-bold text-slate-200 mb-1.5">
-                PROJECT NAME (SAVE AS):
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. F450 Quadcopter Prototype, Fixed-Wing Glider, Thrust Bench..."
-                value={tempProjectName}
-                onChange={(e) => setTempProjectName(e.target.value)}
-                className="w-full px-3.5 py-2.5 rounded-xl bg-slate-900 border border-cyan-500/40 text-amber-300 font-bold text-xs focus:outline-none focus:border-cyan-400 placeholder-slate-500 shadow-inner"
-              />
-            </div>
-
-            <p className="text-xs text-slate-300 leading-relaxed mb-3">
-              Select an experiment to initialize. This loads an empty ESD bench and displays the official step-by-step procedure on the right:
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto p-1 custom-scrollbar mb-4">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-                const g = experimentGuides[num];
-                return (
-                  <button
-                    key={num}
-                    onClick={() => handleStartNewProject(num, tempProjectName)}
-                    className="p-3 rounded-xl bg-slate-900/80 hover:bg-amber-950/50 border border-slate-800 hover:border-amber-400/60 text-left transition-all group cursor-pointer"
-                  >
-                    <div className="text-xs font-bold text-amber-300 group-hover:text-amber-200 flex items-center justify-between">
-                      <span>EXPERIMENT {num}</span>
-                      <ArrowRight className="w-3.5 h-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </div>
-                    <div className="text-[11px] text-slate-400 line-clamp-1 mt-1 font-normal">
-                      {g?.title}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="text-[11px] text-slate-400 text-center">
-              Click any experiment above to save project and begin 3D component assembly
+              <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1 text-[11px]">
+                <div className="text-slate-300">
+                  <strong>Pinout Configuration:</strong> {activeSchematicModal.pinout}
+                </div>
+                <div className="text-slate-300">
+                  <strong>Wire Standard:</strong> {activeSchematicModal.wireColor}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MAIN 3-COLUMN WORKSPACE: [COMPONENTS TRAY] | [3D WORKBENCH] | [ONLY PROCEDURE & DIAGRAMS] */}
-      <div className="flex-1 flex overflow-hidden">
-        
-        {/* 1. LEFT COLUMN: COMPONENTS TRAY (NO EXPERIMENT NUMBERS SHOWN AS REQUESTED) */}
-        <div className="w-72 sm:w-80 md:w-88 bg-[#060a16] border-r border-slate-800/80 flex flex-col shrink-0">
-          
-          {/* Header & Search */}
-          <div className="p-3 border-b border-slate-800 flex flex-col gap-2.5 bg-[#080e22]">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
-                <Box className="w-3.5 h-3.5 text-cyan-400" />
-                <span>COMPONENTS SECTION</span>
-              </span>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-cyan-300 border border-cyan-500/20">
-                {components.filter((c) => c.installed).length} Mounted
-              </span>
-            </div>
-
-            {/* LIVE SEARCH BAR */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search components (motor, esc, frame...)"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-xs font-mono text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-400"
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs cursor-pointer"
-                >
-                  ✕
-                </button>
-              )}
-            </div>
-
-            {/* Category Filter Pills */}
-            <div className="flex items-center gap-1 overflow-x-auto text-[10px] font-mono pb-0.5 custom-scrollbar">
-              {['All', 'Mechanical', 'Propulsion', 'Avionics', 'Power', 'Wires & Linkages', 'Instrumentation'].map((cat) => (
-                <button
-                  key={cat}
-                  onClick={() => setActiveCategory(cat)}
-                  className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap cursor-pointer ${
-                    activeCategory === cat ? 'bg-cyan-600 text-white font-bold' : 'bg-slate-900 text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {cat}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Draggable Components List (No Experiment numbers displayed on cards!) */}
-          <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
-            {filteredComponents.map((item) => (
-              <div
-                key={item.id}
-                draggable={!item.installed && hasActiveProject}
-                onDragStart={(e) => {
-                  e.dataTransfer.setData('text/plain', item.id);
-                  e.dataTransfer.effectAllowed = 'move';
-                }}
-                className={`p-2.5 rounded-xl border transition-all text-xs font-mono flex gap-3 cursor-grab active:cursor-grabbing select-none ${
-                  item.installed
-                    ? 'bg-emerald-950/30 border-emerald-500/40 opacity-75'
-                    : 'bg-slate-900/60 border-slate-800/80 hover:border-cyan-400/60'
-                }`}
-              >
-                {/* 3D Model Miniature Thumbnail */}
-                <Component3DThumbnail visualType={item.visualType} isInstalled={item.installed} />
-
-                {/* Info & Drag CTA */}
-                <div className="flex-1 flex flex-col justify-between min-w-0">
-                  <div>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-white text-[11px] truncate">
-                        {item.name}
-                      </span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 font-mono shrink-0 ml-1">
-                        {item.weightG}g
-                      </span>
-                    </div>
-                    <p className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">{item.model}</p>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1">
-                    <span className="text-[8px] text-slate-500 uppercase tracking-wider">
-                      {item.category}
-                    </span>
-
-                    {item.installed ? (
-                      <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                        <Check className="w-3 h-3" /> Placed
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => handleDropComponent(item.id)}
-                        className="px-2 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[9px] shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
-                        title="Drag or click to place on workbench"
-                      >
-                        <Move className="w-2.5 h-2.5" />
-                        <span>Place</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-2.5 border-t border-slate-800 bg-[#050812] flex items-center justify-between text-xs font-mono">
-            <span className="text-slate-400">BENCH LOAD:</span>
-            <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
-          </div>
-        </div>
-
-        {/* 2. CENTER COLUMN: 3D ESD BENCH (DRAG & DROP TARGET) */}
-        <div 
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDropHover(true);
-          }}
-          onDragLeave={() => setIsDropHover(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            const compId = e.dataTransfer.getData('text/plain');
-            handleDropComponent(compId);
-          }}
-          className={`flex-1 flex flex-col relative overflow-hidden transition-all duration-300 ${
-            isDropHover 
-              ? 'border-4 border-dashed border-cyan-400 bg-cyan-950/20 shadow-[0_0_50px_rgba(6,182,212,0.5)]'
-              : validationAlert?.type === 'error'
-              ? 'border-2 border-rose-500 shadow-[0_0_40px_rgba(244,63,94,0.4)]'
-              : validationAlert?.type === 'success'
-              ? 'border-2 border-emerald-400 shadow-[0_0_40px_rgba(16,185,129,0.4)]'
-              : 'border border-transparent'
-          }`}
-        >
-          {/* Canvas */}
-          <div className="flex-1 relative bg-[#030610]">
-            <Canvas shadows className="w-full h-full">
-              <PerspectiveCamera makeDefault position={[0, 4.5, 6]} fov={45} />
-              <ambientLight intensity={isDay ? 1.3 : 0.6} />
-              <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.2 : 1.4} castShadow />
-              <pointLight position={[0, 3, 0]} intensity={0.9} color={isDay ? '#ffffff' : '#00f0ff'} />
-
-              {!isDay && (
-                <Stars radius={100} depth={50} count={2500} factor={4} saturation={0.5} fade speed={1} />
-              )}
-
-              {/* ESD Workbench Surface */}
-              <mesh position={[0, -0.05, 0]} receiveShadow>
-                <boxGeometry args={[14, 0.1, 9]} />
-                <meshStandardMaterial
-                  color={isDay ? '#475569' : '#0b1329'}
-                  roughness={isDay ? 0.5 : 0.7}
-                  metalness={isDay ? 0.3 : 0.4}
-                />
-              </mesh>
-
-              {/* Fine Grid */}
-              <Grid
-                position={[0, 0.01, 0]}
-                args={[12, 8]}
-                cellSize={0.5}
-                cellThickness={0.8}
-                cellColor={isDay ? '#64748b' : '#1e3a5f'}
-                sectionSize={2}
-                sectionThickness={1.4}
-                sectionColor={isDay ? '#0284c7' : '#00f0ff'}
-                fadeDistance={25}
-              />
-
-              {/* Only render hardware when a project is active */}
-              {hasActiveProject && (
-                <>
-                  {/* EX 1 & 9: Quadcopter-X */}
-                  {(selectedExpNo === 1 || selectedExpNo === 9) && (
-                    <group position={[0, 0.1 + explodeRatio * 0.4, 0]}>
-                      <QuadcopterModel
-                        scale={1.2}
-                        spinning={isTestRunning && testThrottle > 0}
-                        throttle={testThrottle / 10}
-                        explodedFactor={explodeRatio}
-                        showWiring={true}
-                      />
-                    </group>
-                  )}
-
-                  {/* EX 2: Fixed-Wing */}
-                  {selectedExpNo === 2 && (
-                    <group position={[0, 0.4 + explodeRatio * 0.5, 0]}>
-                      <FixedWingModel
-                        scale={0.9}
-                        spinning={isTestRunning && testThrottle > 0}
-                        throttle={testThrottle}
-                        explodedFactor={explodeRatio}
-                      />
-                    </group>
-                  )}
-
-                  {/* EX 3: Thrust Stand */}
-                  {selectedExpNo === 3 && (
-                    <group position={[0, 0, 0]}>
-                      <mesh position={[0, 0.25, 0]}>
-                        <boxGeometry args={[1.8, 0.5, 3.2]} />
-                        <meshStandardMaterial color={isDay ? '#64748b' : '#1e293b'} metalness={0.7} roughness={0.3} />
-                      </mesh>
-                      <group position={[0, 0.65, -0.5]}>
-                        <BLDCMotorModel scale={1.2} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} />
-                        <group position={[0, 0.45, 0]}>
-                          <PropellerModel scale={1.1} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} blades={2} />
-                        </group>
-                      </group>
-                      <group position={[-0.5, 0.55, 0.6]}>
-                        <ESCModel scale={0.8} ampRating={30} />
-                      </group>
-                      <group position={[0.4, 0.55, 0.6]}>
-                        <LiPoBatteryModel scale={0.75} cells={3} />
-                      </group>
-                    </group>
-                  )}
-
-                  {/* EX 4: Servo Protractor */}
-                  {selectedExpNo === 4 && (
-                    <group position={[0, 0.1, 0]}>
-                      <group position={[0, 0.3, 0]}>
-                        <ServoMotorModel scale={1.8} angle={activeServoAngle} />
-                      </group>
-                      <mesh position={[0, 0.05, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <ringGeometry args={[1.2, 1.6, 32, 1, 0, Math.PI]} />
-                        <meshStandardMaterial color="#f59e0b" metalness={0.5} roughness={0.5} />
-                      </mesh>
-                    </group>
-                  )}
-
-                  {/* EX 5: LiPo & IMAX B6 */}
-                  {selectedExpNo === 5 && (
-                    <group position={[0, 0.1, 0]}>
-                      <group position={[-1.0, 0.2, 0]}>
-                        <LiPoBatteryModel scale={1.3} cells={3} />
-                      </group>
-                      <group position={[1.0, 0.2, 0]}>
-                        <mesh>
-                          <boxGeometry args={[1.8, 0.4, 1.3]} />
-                          <meshStandardMaterial color="#2563eb" metalness={0.8} roughness={0.3} />
-                        </mesh>
-                        <mesh position={[0, 0.21, -0.1]}>
-                          <planeGeometry args={[1.2, 0.45]} />
-                          <meshBasicMaterial color="#0284c7" />
-                        </mesh>
-                      </group>
-                    </group>
-                  )}
-
-                  {/* EX 6: RC Radio & Receiver */}
-                  {selectedExpNo === 6 && (
-                    <group position={[0, 0.2, 0]}>
-                      <group position={[-1.2, 0.8, 0]} rotation={[0.4, 0, 0]}>
-                        <mesh>
-                          <boxGeometry args={[1.6, 2.0, 0.6]} />
-                          <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
-                        </mesh>
-                      </group>
-                      <group position={[1.2, 0.2, 0]}>
-                        <mesh>
-                          <boxGeometry args={[0.9, 0.3, 0.6]} />
-                          <meshStandardMaterial color="#0f172a" />
-                        </mesh>
-                      </group>
-                    </group>
-                  )}
-
-                  {/* EX 7: Prop Balancer */}
-                  {selectedExpNo === 7 && (
-                    <group position={[0, 0, 0]}>
-                      <BalanceStandModel scale={1.2} />
-                      <group position={[0, 1.45, 0]}>
-                        <PropellerModel scale={1.3} spinning={false} rpm={0} blades={2} />
-                      </group>
-                    </group>
-                  )}
-
-                  {/* EX 8: Wind Tunnel Airfoil */}
-                  {selectedExpNo === 8 && (
-                    <group position={[0, 0.4, 0]}>
-                      <mesh rotation={[0, 0, 0.15]}>
-                        <boxGeometry args={[0.2, 1.2, 3.0]} />
-                        <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
-                      </mesh>
-                      <mesh position={[0, -0.3, 0]}>
-                        <boxGeometry args={[2.5, 0.1, 4.0]} />
-                        <meshStandardMaterial color="#1e293b" wireframe />
-                      </mesh>
-                    </group>
-                  )}
-
-                  {/* EX 10: KK2.1.5 */}
-                  {selectedExpNo === 10 && (
-                    <group position={[0, 0.2 + explodeRatio * 0.3, 0]}>
-                      <KK215BoardModel scale={1.5} />
-                    </group>
-                  )}
-                </>
-              )}
-
-              <OrbitControls enableDamping dampingFactor={0.05} />
-            </Canvas>
-
-            {/* Empty Workbench Callout when no project active */}
-            {!hasActiveProject && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 bg-black/40 backdrop-blur-xs">
-                <div className="p-4 rounded-2xl bg-[#0b1328]/95 border-2 border-amber-400 max-w-md shadow-[0_0_40px_rgba(245,158,11,0.4)]">
-                  <Wrench className="w-10 h-10 text-amber-400 mx-auto mb-3 animate-bounce" />
-                  <h3 className="text-base font-bold font-mono text-white mb-2">
-                    EMPTY LABORATORY WORKBENCH
-                  </h3>
-                  <p className="text-xs text-slate-300 font-mono mb-4 leading-relaxed">
-                    Ready to assemble hardware! Click below to create a project, choose an experiment, and begin step-by-step physical assembly.
-                  </p>
-                  <button
-                    onClick={() => setShowNewProjectModal(true)}
-                    className="w-full py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black font-mono text-xs shadow-md cursor-pointer transition-transform active:scale-95 flex items-center justify-center gap-2"
-                  >
-                    <FolderPlus className="w-4 h-4 text-slate-950" />
-                    <span>CREATE NEW ASSEMBLY PROJECT</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Drag & Drop Prompt Overlay */}
-            {isDropHover && (
-              <div className="absolute inset-0 bg-cyan-500/25 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none z-30 animate-pulse">
-                <Move className="w-12 h-12 text-cyan-300 mb-2 animate-bounce" />
-                <span className="text-base font-black text-cyan-200 font-mono tracking-widest uppercase">
-                  DROP COMPONENT HERE TO ASSEMBLE
-                </span>
-              </div>
-            )}
-
-            {/* Explode View Slider */}
-            {hasActiveProject && (
-              <div className="absolute top-3 right-3 bg-[#0a1024]/90 backdrop-blur-md p-2.5 rounded-xl border border-cyan-500/30 flex items-center gap-3 text-xs font-mono shadow-md">
-                <span className="text-slate-400">EXPLODE:</span>
-                <input
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={explodeRatio}
-                  onChange={(e) => setExplodeRatio(parseFloat(e.target.value))}
-                  className="w-24 sm:w-28 accent-cyan-400 cursor-pointer"
-                />
-                <span className="text-cyan-300 font-bold">{Math.round(explodeRatio * 100)}%</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 3. RIGHT COLUMN: ONLY PROCEDURE & CONNECTION DIAGRAMS (AS REQUESTED) */}
-        <div className="w-84 md:w-96 lg:w-[420px] bg-[#060a16] border-l border-slate-800/80 flex flex-col shrink-0 overflow-y-auto p-4 space-y-4 custom-scrollbar">
-          
-          {hasActiveProject ? (
-            <>
-              {/* Procedure Header */}
-              <div className="border-b border-slate-800 pb-3">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-mono font-bold border border-amber-500/40">
-                    EXPERIMENT NO {activeGuide.expNo}
-                  </span>
-                  <span className="text-[10px] font-mono text-cyan-400">
-                    {currentCompletedSteps.length} / {activeExpSteps.length} Steps
-                  </span>
-                </div>
-
-                <h3 className="text-sm font-bold text-white leading-snug">
-                  {activeGuide.title}
-                </h3>
-
-                <p className="mt-1 text-[11px] text-slate-400 leading-relaxed font-mono">
-                  <strong>AIM:</strong> {activeGuide.aim}
-                </p>
-
-                {/* Progress */}
-                <div className="mt-3 w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                  <div
-                    className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full rounded-full transition-all duration-300"
-                    style={{
-                      width: `${Math.round((currentCompletedSteps.length / activeExpSteps.length) * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* RUN & EXECUTE BUTTON */}
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-slate-400 font-bold">PROCEDURE STATUS:</span>
-                  <span className={isExpFullyAssembled ? 'text-emerald-400 font-bold' : 'text-amber-400'}>
-                    {isExpFullyAssembled ? 'ASSEMBLY COMPLETE' : `STEP ${nextExpectedStep?.stepNo || 1} PENDING`}
-                  </span>
-                </div>
-
-                <button
-                  onClick={handleRunAndExecute}
-                  disabled={!isExpFullyAssembled}
-                  className={`w-full py-3 rounded-xl font-mono font-black text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                    isExpFullyAssembled
-                      ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.5)] active:scale-95'
-                      : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  <Play className="w-4 h-4 fill-current" />
-                  <span>RUN & EXECUTE EXPERIMENT</span>
-                </button>
-              </div>
-
-              {/* ONLY PROCEDURE SECTION (Step by step with connection diagrams) */}
-              <div className="space-y-3.5">
-                <h4 className="text-xs font-bold text-slate-200 font-mono flex items-center gap-1.5">
-                  <Activity className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>OFFICIAL LAB PROCEDURE</span>
-                </h4>
-
-                {activeExpSteps.map((step) => {
-                  const isStepDone = currentCompletedSteps.includes(step.stepNo);
-                  const isCurrent = step.stepNo === nextExpectedStep?.stepNo;
-
-                  return (
-                    <div
-                      key={step.stepNo}
-                      className={`p-3.5 rounded-xl border transition-all text-xs font-mono flex flex-col gap-2.5 ${
-                        isStepDone
-                          ? 'bg-emerald-950/20 border-emerald-500/50 text-slate-300'
-                          : isCurrent
-                          ? 'bg-[#0e1c3a] border-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.3)]'
-                          : 'bg-slate-900/60 border-slate-800 text-slate-400'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-[11px] flex items-center gap-2">
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                            isStepDone 
-                              ? 'bg-emerald-500 text-slate-950' 
-                              : isCurrent
-                              ? 'bg-amber-400 text-slate-950 animate-bounce'
-                              : 'bg-slate-800 text-slate-400'
-                          }`}>
-                            {isStepDone ? '✓' : step.stepNo}
-                          </span>
-                          <span>{step.title}</span>
-                        </span>
-
-                        {isCurrent && (
-                          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
-                            NEXT STEP &gt;&gt;&gt;
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="text-[11px] text-slate-300 leading-relaxed font-normal">
-                        {step.instruction}
-                      </p>
-
-                      {/* CLEAR CONNECTION DIAGRAM & PINOUT SCHEMATIC (IF ANY) */}
-                      {step.connectionDiagram && (
-                        <div className="p-3 rounded-xl bg-slate-950/90 border border-cyan-500/30 text-[10px] font-mono space-y-1.5 shadow-sm">
-                          <div className="font-bold text-amber-300 flex items-center gap-1">
-                            <Cable className="w-3.5 h-3.5" />
-                            <span>CONNECTION SCHEMATIC & WIRING DIAGRAM:</span>
-                          </div>
-                          <div className="text-cyan-300">
-                            <strong>From:</strong> {step.connectionDiagram.from}
-                          </div>
-                          <div className="text-cyan-300">
-                            <strong>To:</strong> {step.connectionDiagram.to}
-                          </div>
-                          <div className="text-slate-300 bg-slate-900 p-1.5 rounded border border-slate-800 font-mono">
-                            {step.connectionDiagram.schematicText}
-                          </div>
-                          <div className="text-slate-400 text-[9px]">
-                            <strong>Pinout:</strong> {step.connectionDiagram.pinout}
-                          </div>
-                          <div className="text-slate-400 text-[9px]">
-                            <strong>Wiring:</strong> {step.connectionDiagram.wireColor}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Step Trigger Action */}
-                      <div className="flex items-center justify-between pt-1">
-                        <span className="text-[10px] text-slate-400 truncate max-w-[190px]">
-                          Target: {step.targetComponentName}
-                        </span>
-
-                        <button
-                          onClick={() => handleDropComponent(step.targetComponentId)}
-                          disabled={isStepDone}
-                          className={`px-3 py-1 rounded-lg text-[10px] font-bold font-mono transition-transform active:scale-95 flex items-center gap-1 cursor-pointer ${
-                            isStepDone
-                              ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30 cursor-default'
-                              : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-glow-cyan'
-                          }`}
-                        >
-                          {isStepDone ? (
-                            <>
-                              <CheckCheck className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>Completed</span>
-                            </>
-                          ) : (
-                            <>
-                              <Move className="w-3 h-3" />
-                              <span>Place Part</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-400 font-mono text-xs">
-              <FolderPlus className="w-8 h-8 text-amber-400 mb-2 opacity-60" />
-              <p>No project selected.</p>
-              <p className="text-[11px] text-slate-500 mt-1">
-                Click "NEW PROJECT" to choose an experiment and see its official procedure here.
-              </p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 4. FINAL OUTPUT & SCREENSHOT MODAL (When Experiment Executes) */}
+      {/* 5. FINAL OUTPUT & OBSERVATION RECORD MODAL (When Experiment Executes) */}
       {showOutputModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-300">
-          <div className="relative max-w-3xl w-full rounded-2xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-6 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.5)] overflow-hidden font-sans">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className="relative max-w-3xl w-full rounded-2xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-6 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.5)] font-sans">
             
             {/* Header */}
             <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4 font-mono">
@@ -1901,7 +2111,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                   <h3 className="text-base sm:text-lg font-bold text-white">
                     EX {selectedExpNo} LIVE EXPERIMENT RESULTS & OBSERVATION RECORD
                   </h3>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-400 font-mono">
                     {activeGuide.title}
                   </p>
                 </div>
@@ -1938,7 +2148,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               </div>
             </div>
 
-            {/* Throttle Sweep */}
+            {/* Throttle Sweep Slider */}
             <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2 font-mono text-xs mb-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-300 font-bold">PWM THROTTLE SWEEP:</span>
@@ -1954,79 +2164,25 @@ export const HardwareWorkbenchView: React.FC = () => {
               />
             </div>
 
-            {/* Official Observation Table */}
-            <div className="border border-slate-800 rounded-xl overflow-hidden mb-5 text-xs font-mono">
-              <div className="bg-slate-900/90 p-2 font-bold text-slate-300 border-b border-slate-800">
-                OFFICIAL OBSERVATION TABLE (CALCULATED VALUES)
-              </div>
-              <table className="w-full text-left text-[11px]">
-                <thead className="bg-slate-950 text-slate-400 border-b border-slate-800">
-                  <tr>
-                    <th className="p-2">S.No</th>
-                    <th className="p-2">Throttle (%)</th>
-                    <th className="p-2">Speed (RPM)</th>
-                    <th className="p-2">Voltage (V)</th>
-                    <th className="p-2">Current (A)</th>
-                    <th className="p-2">Thrust (g)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                  <tr>
-                    <td className="p-2">1</td>
-                    <td className="p-2">20%</td>
-                    <td className="p-2">1,960</td>
-                    <td className="p-2">12.4</td>
-                    <td className="p-2">2.5</td>
-                    <td className="p-2">120</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2">2</td>
-                    <td className="p-2">40%</td>
-                    <td className="p-2">3,920</td>
-                    <td className="p-2">12.1</td>
-                    <td className="p-2">5.1</td>
-                    <td className="p-2">310</td>
-                  </tr>
-                  <tr>
-                    <td className="p-2">3</td>
-                    <td className="p-2">60%</td>
-                    <td className="p-2">5,880</td>
-                    <td className="p-2">11.8</td>
-                    <td className="p-2">7.6</td>
-                    <td className="p-2">530</td>
-                  </tr>
-                  <tr className="bg-cyan-950/20 font-bold text-cyan-300">
-                    <td className="p-2">4</td>
-                    <td className="p-2">{testThrottle}%</td>
-                    <td className="p-2">{testRPM}</td>
-                    <td className="p-2">{testVoltageV}</td>
-                    <td className="p-2">{testCurrentA}</td>
-                    <td className="p-2">{testThrustG}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* ACTION BUTTONS: SCREENSHOT & FULL LAB RECORD */}
-            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 font-mono">
-              <button
-                onClick={handleCaptureResult}
-                disabled={isCapturingScreenshot}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-black text-xs sm:text-sm shadow-[0_0_20px_rgba(6,182,212,0.5)] transition-all cursor-pointer active:scale-95"
-              >
-                <Camera className="w-4 h-4 text-slate-950" />
-                <span>📷 TAKE SCREENSHOT OF OUTPUT</span>
-              </button>
-
+            {/* Action Buttons */}
+            <div className="flex items-center justify-between pt-2">
               <button
                 onClick={() => {
+                  setShowOutputModal(false);
                   setSelectedReportExpId(selectedExpNo);
                   setIsRecordModalOpen(true);
                 }}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer"
               >
-                <FileText className="w-4 h-4 text-slate-950" />
-                <span>PRINT FULL LAB RECORD</span>
+                <FileText className="w-4 h-4" />
+                <span>GENERATE OFFICIAL LAB RECORD</span>
+              </button>
+
+              <button
+                onClick={() => setShowOutputModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-mono text-xs cursor-pointer"
+              >
+                Return to Workbench
               </button>
             </div>
           </div>

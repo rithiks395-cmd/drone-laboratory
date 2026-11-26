@@ -24,6 +24,7 @@ import { Exp9QuadcopterAssembly } from './components/experiments/Exp9QuadcopterA
 import { Exp10KK215Programming } from './components/experiments/Exp10KK215Programming';
 import { FlightSimulator } from './components/flight-simulator/FlightSimulator';
 import { LabRecordsView } from './components/experiments/LabRecordsView';
+import { HardwareWorkbenchView } from './components/workbench/HardwareWorkbenchView';
 
 const MainSimulationRouter: React.FC = () => {
   const { activeView } = useLab();
@@ -31,6 +32,8 @@ const MainSimulationRouter: React.FC = () => {
   switch (activeView) {
     case 'dashboard':
       return <Dashboard />;
+    case 'hardware-workbench':
+      return <HardwareWorkbenchView />;
     case 'exp1':
       return <Exp1WeightPayload />;
     case 'exp2':

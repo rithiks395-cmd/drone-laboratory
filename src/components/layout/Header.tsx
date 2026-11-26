@@ -16,7 +16,8 @@ import {
   Maximize2,
   Minimize2,
   DownloadCloud,
-  Smartphone
+  Smartphone,
+  Wrench
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -175,6 +176,20 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef }) => {
 
       {/* Right Controls: Theme Toggle, Hardware Inspector, Capture, Report, Fullscreen */}
       <div className="flex items-center gap-1.5 sm:gap-2">
+        {/* HARDWARE ASSEMBLY BENCH SHORTCUT */}
+        <button
+          onClick={() => setActiveView('hardware-workbench')}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+            activeView === 'hardware-workbench'
+              ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-glow-amber'
+              : 'bg-slate-800 text-amber-300 border-amber-500/30 hover:bg-slate-700'
+          }`}
+          title="Open Virtual Hardware Assembly Workbench & Physical Experiments"
+        >
+          <Wrench className="w-3.5 h-3.5 text-amber-400" />
+          <span className="hidden sm:inline">Assembly Lab</span>
+        </button>
+
         {/* PHONE RC TRANSMITTER SHORTCUT */}
         <button
           onClick={() => setActiveView('flight-simulator')}

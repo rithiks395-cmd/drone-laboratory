@@ -18,7 +18,8 @@ import {
   CheckCircle2, 
   Clock,
   X,
-  Search
+  Search,
+  Wrench
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
@@ -103,6 +104,7 @@ export const Sidebar: React.FC = () => {
         {/* Top Main Navigation */}
         <div className="p-3 border-b border-slate-800 space-y-1">
           {navItem('dashboard', 'Laboratory Dashboard', LayoutDashboard)}
+          {navItem('hardware-workbench', 'Hardware Assembly Lab', Wrench, 'NEW 3D')}
           {navItem('flight-simulator', '3D Flight Simulator', Compass, 'LIVE 3D')}
           {navItem('lab-records', 'Lab Records & Observations', BookOpen)}
 

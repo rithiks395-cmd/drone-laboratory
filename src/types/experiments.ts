@@ -28,6 +28,7 @@ export interface LabRecordData {
 
 export type ActiveView = 
   | 'dashboard'
+  | 'hardware-workbench'
   | 'exp1'
   | 'exp2'
   | 'exp3'

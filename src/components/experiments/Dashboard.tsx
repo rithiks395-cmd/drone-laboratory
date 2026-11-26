@@ -15,7 +15,8 @@ import {
   Gauge, 
   Activity,
   Copyright,
-  HardDrive
+  HardDrive,
+  Wrench
 } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
@@ -44,6 +45,13 @@ export const Dashboard: React.FC = () => {
           </p>
 
           <div className="flex flex-wrap gap-3 mt-4">
+            <button
+              onClick={() => setActiveView('hardware-workbench')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-md transition-all active:scale-95"
+            >
+              <Wrench className="w-4 h-4" />
+              <span>Hardware Assembly Lab</span>
+            </button>
             <button
               onClick={() => setActiveView('exp1')}
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs shadow-glow-cyan transition-all"

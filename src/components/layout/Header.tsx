@@ -179,15 +179,15 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef }) => {
         {/* HARDWARE ASSEMBLY BENCH SHORTCUT */}
         <button
           onClick={() => setActiveView('hardware-workbench')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md ${
             activeView === 'hardware-workbench'
-              ? 'bg-amber-500/25 text-amber-300 border-amber-400 shadow-glow-amber'
-              : 'bg-slate-800 text-amber-300 border-amber-500/30 hover:bg-slate-700'
+              ? 'bg-amber-500/30 text-amber-300 border-amber-400 shadow-glow-amber ring-1 ring-amber-400/50'
+              : 'bg-gradient-to-r from-amber-600/30 to-amber-700/20 text-amber-300 border-amber-500/50 hover:bg-amber-600/40 hover:text-white'
           }`}
           title="Open Virtual Hardware Assembly Workbench & Physical Experiments"
         >
-          <Wrench className="w-3.5 h-3.5 text-amber-400" />
-          <span className="hidden sm:inline">Assembly Lab</span>
+          <Wrench className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+          <span className="font-bold tracking-wide">Assembly Lab</span>
         </button>
 
         {/* PHONE RC TRANSMITTER SHORTCUT */}

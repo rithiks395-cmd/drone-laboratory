@@ -48,21 +48,35 @@ export const Sidebar: React.FC = () => {
 
   const navItem = (view: ActiveView, label: string, Icon: React.ComponentType<{ className?: string }>, badge?: string, isCompleted?: boolean) => {
     const isActive = activeView === view;
+    const isWorkbench = view === 'hardware-workbench';
+
     return (
       <button
         onClick={() => handleSelectView(view)}
         className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-xs font-medium transition-all group ${
           isActive
-            ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-glow-cyan'
-            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
+            ? isWorkbench 
+              ? 'bg-amber-500/30 text-amber-300 border border-amber-400 shadow-glow-amber font-bold'
+              : 'bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 shadow-glow-cyan'
+            : isWorkbench
+              ? 'bg-amber-950/30 text-amber-300 hover:bg-amber-900/40 border border-amber-500/30 font-semibold'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 border border-transparent'
         }`}
       >
         <div className="flex items-center gap-2.5 min-w-0">
-          <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-cyan-400' : 'text-slate-400 group-hover:text-cyan-400'}`} />
+          <Icon className={`w-4 h-4 shrink-0 ${
+            isActive 
+              ? isWorkbench ? 'text-amber-400' : 'text-cyan-400'
+              : isWorkbench ? 'text-amber-400' : 'text-slate-400 group-hover:text-cyan-400'
+          }`} />
           <span className="truncate">{label}</span>
         </div>
         {badge && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 font-mono border border-blue-400/30">
+          <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono border ${
+            isWorkbench 
+              ? 'bg-amber-500/20 text-amber-300 border-amber-400/40 font-bold'
+              : 'bg-blue-500/20 text-blue-300 border-blue-400/30'
+          }`}>
             {badge}
           </span>
         )}

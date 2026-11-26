@@ -30,7 +30,9 @@ export const Sidebar: React.FC = () => {
     mobileMenuOpen, 
     setMobileMenuOpen, 
     openInspection,
-    isOfflineExamMode 
+    isOfflineExamMode,
+    selectedWorkbenchExpNo,
+    setSelectedWorkbenchExpNo
   } = useLab();
 
   const getExperimentIcon = (id: number) => {
@@ -123,33 +125,37 @@ export const Sidebar: React.FC = () => {
           </button>
         </div>
 
-        {/* Top Main Navigation */}
-        <div className="p-3 border-b border-slate-800 space-y-1">
-          {navItem('dashboard', 'Laboratory Dashboard', LayoutDashboard)}
-          {navItem('hardware-workbench', 'Hardware Assembly Lab', Wrench, 'NEW 3D')}
-          {navItem('flight-simulator', '3D Flight Simulator', Compass, 'LIVE 3D')}
-          {navItem('lab-records', 'Lab Records & Observations', BookOpen)}
+        {/* Top Main Navigation (Only in Online Mode) */}
+        {!isOfflineExamMode && (
+          <div className="p-3 border-b border-slate-800 space-y-1">
+            {navItem('dashboard', 'Laboratory Dashboard', LayoutDashboard)}
+            {navItem('hardware-workbench', 'Hardware Assembly Lab', Wrench, 'NEW 3D')}
+            {navItem('flight-simulator', '3D Flight Simulator', Compass, 'LIVE 3D')}
+            {navItem('lab-records', 'Lab Records & Observations', BookOpen)}
 
-          {/* Quick Hardware Inspector Pill */}
-          <button
-            onClick={() => {
-              openInspection('Brushless DC Motor');
-              setMobileMenuOpen(false);
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-cyan-300 hover:bg-slate-800/60 border border-cyan-500/20 mt-1"
-          >
-            <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-cyan-400" />
-              <span>3D Hardware Inspector</span>
-            </div>
-            <span className="text-[9px] font-mono px-1 rounded bg-cyan-950 text-cyan-400">PBR</span>
-          </button>
-        </div>
+            {/* Quick Hardware Inspector Pill */}
+            <button
+              onClick={() => {
+                openInspection('Brushless DC Motor');
+                setMobileMenuOpen(false);
+              }}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-cyan-300 hover:bg-slate-800/60 border border-cyan-500/20 mt-1"
+            >
+              <div className="flex items-center gap-2">
+                <Search className="w-3.5 h-3.5 text-cyan-400" />
+                <span>3D Hardware Inspector</span>
+              </div>
+              <span className="text-[9px] font-mono px-1 rounded bg-cyan-950 text-cyan-400">PBR</span>
+            </button>
+          </div>
+        )}
 
         {/* Experiments List Header */}
         <div className="px-4 py-2 flex items-center justify-between text-[11px] font-mono uppercase tracking-wider text-cyan-400/80 bg-slate-900/40 border-b border-slate-800">
-          <span>{isOfflineExamMode ? 'PRACTICAL EXAM TASKS' : 'SYLLABUS EXPERIMENTS (10)'}</span>
-          <span className="text-slate-400">{experiments.filter((e) => e.completed).length}/10</span>
+          <span>{isOfflineExamMode ? 'EXPERIMENTS' : 'SYLLABUS EXPERIMENTS (10)'}</span>
+          {!isOfflineExamMode && (
+            <span className="text-slate-400">{experiments.filter((e) => e.completed).length}/10</span>
+          )}
         </div>
 
         {/* Scrollable Experiments Navigation */}
@@ -157,12 +163,22 @@ export const Sidebar: React.FC = () => {
           {experiments.map((exp) => {
             const viewKey = `exp${exp.id}` as ActiveView;
             const IconComponent = getExperimentIcon(exp.id);
-            const isActive = activeView === viewKey;
+            const isActive = isOfflineExamMode 
+              ? selectedWorkbenchExpNo === exp.id 
+              : activeView === viewKey;
 
             return (
               <button
                 key={exp.id}
-                onClick={() => handleSelectView(viewKey)}
+                onClick={() => {
+                  if (isOfflineExamMode) {
+                    setSelectedWorkbenchExpNo(exp.id);
+                    setActiveView('hardware-workbench');
+                    setMobileMenuOpen(false);
+                  } else {
+                    handleSelectView(viewKey);
+                  }
+                }}
                 className={`w-full flex items-start gap-2.5 p-2 rounded-lg text-left transition-all group ${
                   isActive
                     ? 'bg-gradient-to-r from-cyan-950/70 to-blue-950/40 border border-cyan-500/50 shadow-glow-cyan text-cyan-200'
@@ -177,26 +193,35 @@ export const Sidebar: React.FC = () => {
                   <IconComponent className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <span className="text-[10px] font-mono text-cyan-400 font-semibold tracking-wider">
-                      {isOfflineExamMode ? `TASK ${exp.id < 10 ? '0' + exp.id : exp.id}` : `EXP 0${exp.id}`}
-                    </span>
-                    {exp.completed ? (
-                      <span className="flex items-center gap-0.5 text-[9px] font-mono text-emerald-400 font-medium">
-                        <CheckCircle2 className="w-2.5 h-2.5" /> DONE
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-0.5 text-[9px] font-mono text-slate-500">
-                        <Clock className="w-2.5 h-2.5" /> PENDING
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs font-medium leading-snug truncate mt-0.5 text-slate-200">
-                    {isOfflineExamMode ? 'Practical Hardware Assessment' : exp.shortTitle}
-                  </div>
-                  <div className="text-[10px] text-slate-500 truncate mt-0.5">
-                    {isOfflineExamMode ? 'Assemble from Knowledge' : exp.category}
-                  </div>
+                  {isOfflineExamMode ? (
+                    /* OFFLINE EXAM MODE: EX NAME CAN BE THERE ONLY NAME */
+                    <div className="text-xs font-semibold leading-relaxed text-slate-100 py-0.5">
+                      {exp.title}
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[10px] font-mono text-cyan-400 font-semibold tracking-wider">
+                          EXP 0{exp.id}
+                        </span>
+                        {exp.completed ? (
+                          <span className="flex items-center gap-0.5 text-[9px] font-mono text-emerald-400 font-medium">
+                            <CheckCircle2 className="w-2.5 h-2.5" /> DONE
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-0.5 text-[9px] font-mono text-slate-500">
+                            <Clock className="w-2.5 h-2.5" /> PENDING
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-xs font-medium leading-snug truncate mt-0.5 text-slate-200">
+                        {exp.shortTitle}
+                      </div>
+                      <div className="text-[10px] text-slate-500 truncate mt-0.5">
+                        {exp.category}
+                      </div>
+                    </>
+                  )}
                 </div>
               </button>
             );

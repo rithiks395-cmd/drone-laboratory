@@ -41,6 +41,7 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
     setActiveView,
     isPhoneModalOpen,
     setIsPhoneModalOpen,
+    isOfflineExamMode,
   } = useLab();
 
   const [isCapturing, setIsCapturing] = useState(false);
@@ -136,48 +137,52 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
 
       {/* CENTER SECTION: Cleanly Spaced Primary Navigation and Action Buttons */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Intro Page Return */}
-        {onReturnToIntro && (
+        {/* IN OFFLINE EXAM MODE: ONLY ESSENTIAL WORKBENCH CONTROLS */}
+        {!isOfflineExamMode && onReturnToIntro && (
           <button
             onClick={onReturnToIntro}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold transition-all shadow-sm cursor-pointer shrink-0"
-            title="Return to Rithik's Aero-Space Laboratory Welcome Intro Screen"
+            title="Return to Welcome Intro Screen"
           >
             <Home className="w-3.5 h-3.5 text-cyan-400" />
             <span className="hidden lg:inline">Intro Page</span>
           </button>
         )}
 
-        {/* Assembly Lab Workbench (Highlighted prominent button) */}
-        <button
-          onClick={() => setActiveView('hardware-workbench')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md cursor-pointer shrink-0 ${
-            activeView === 'hardware-workbench'
-              ? 'bg-amber-500/30 text-amber-300 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.5)] ring-1 ring-amber-400/50'
-              : 'bg-gradient-to-r from-amber-600/30 to-amber-700/20 text-amber-300 border-amber-500/50 hover:bg-amber-600/40 hover:text-white'
-          }`}
-          title="Open Virtual Hardware Assembly Workbench & 3D Components"
-        >
-          <Wrench className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
-          <span className="font-bold tracking-wide">Assembly Lab</span>
-        </button>
+        {/* Assembly Lab Workbench (Only visible in online mode since offline is exclusively workbench) */}
+        {!isOfflineExamMode && (
+          <button
+            onClick={() => setActiveView('hardware-workbench')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md cursor-pointer shrink-0 ${
+              activeView === 'hardware-workbench'
+                ? 'bg-amber-500/30 text-amber-300 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.5)] ring-1 ring-amber-400/50'
+                : 'bg-gradient-to-r from-amber-600/30 to-amber-700/20 text-amber-300 border-amber-500/50 hover:bg-amber-600/40 hover:text-white'
+            }`}
+            title="Open Virtual Hardware Assembly Workbench & 3D Components"
+          >
+            <Wrench className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
+            <span className="font-bold tracking-wide">Assembly Lab</span>
+          </button>
+        )}
 
-        {/* Phone Joystick Controller */}
-        <button
-          onClick={() => {
-            setActiveView('flight-simulator');
-            setIsPhoneModalOpen(true);
-          }}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shrink-0 cursor-pointer shadow-md active:scale-95 ${
-            activeView === 'flight-simulator'
-              ? 'bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-glow-cyan'
-              : 'bg-slate-800/90 text-cyan-400 border-cyan-500/40 hover:bg-slate-700 hover:border-cyan-300'
-          }`}
-          title="Fly 3D drone using your phone as joystick controller"
-        >
-          <Smartphone className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-          <span className="font-bold">Phone Joystick</span>
-        </button>
+        {/* Phone Joystick Controller (Online only) */}
+        {!isOfflineExamMode && (
+          <button
+            onClick={() => {
+              setActiveView('flight-simulator');
+              setIsPhoneModalOpen(true);
+            }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shrink-0 cursor-pointer shadow-md active:scale-95 ${
+              activeView === 'flight-simulator'
+                ? 'bg-cyan-500/25 text-cyan-300 border-cyan-400 shadow-glow-cyan'
+                : 'bg-slate-800/90 text-cyan-400 border-cyan-500/40 hover:bg-slate-700 hover:border-cyan-300'
+            }`}
+            title="Fly 3D drone using your phone as joystick controller"
+          >
+            <Smartphone className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span className="font-bold">Phone Joystick</span>
+          </button>
+        )}
 
         {/* Daytime / Nighttime Atmosphere Switch */}
         <button
@@ -193,47 +198,55 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
           <span className="hidden xl:inline">{isDay ? 'Day' : 'Night'}</span>
         </button>
 
-        {/* 3D Hardware Micro-Inspector */}
-        <button
-          onClick={() => openInspection('Brushless DC Motor')}
-          className="hidden 2xl:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all shrink-0"
-          title="Open Photorealistic 3D Component Micro-Inspector"
-        >
-          <Search className="w-3.5 h-3.5 text-cyan-400" />
-          <span>3D View</span>
-        </button>
+        {/* 3D Hardware Micro-Inspector (Online only) */}
+        {!isOfflineExamMode && (
+          <button
+            onClick={() => openInspection('Brushless DC Motor')}
+            className="hidden 2xl:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all shrink-0"
+            title="Open Photorealistic 3D Component Micro-Inspector"
+          >
+            <Search className="w-3.5 h-3.5 text-cyan-400" />
+            <span>3D View</span>
+          </button>
+        )}
 
-        {/* Screenshot Capture Button (Clean & Never Clipped) */}
-        <button
-          onClick={handleCapture}
-          disabled={isCapturing}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white text-xs font-semibold shadow-glow-cyan border border-cyan-400/60 transition-all active:scale-95 disabled:opacity-50 shrink-0"
-          title="Capture simulation workspace output screenshot"
-        >
-          <Camera className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden lg:inline">{isCapturing ? '...' : 'Screenshot'}</span>
-        </button>
+        {/* Screenshot Capture Button (Online only) */}
+        {!isOfflineExamMode && (
+          <button
+            onClick={handleCapture}
+            disabled={isCapturing}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-cyan-600/90 hover:bg-cyan-500 text-white text-xs font-semibold shadow-glow-cyan border border-cyan-400/60 transition-all active:scale-95 disabled:opacity-50 shrink-0"
+            title="Capture simulation workspace output screenshot"
+          >
+            <Camera className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden lg:inline">{isCapturing ? '...' : 'Screenshot'}</span>
+          </button>
+        )}
 
-        {/* Lab Record Generator Button (Clean & Never Clipped) */}
-        <button
-          onClick={handleOpenReport}
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600/90 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue border border-blue-400/60 transition-all active:scale-95 cursor-pointer shrink-0"
-          title="Open Lab Record, Observations & PDF Generator"
-        >
-          <FileText className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden lg:inline">Record</span>
-        </button>
+        {/* Lab Record Generator Button: STRICTLY HIDDEN IN OFFLINE EXAM MODE */}
+        {!isOfflineExamMode && (
+          <button
+            onClick={handleOpenReport}
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600/90 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue border border-blue-400/60 transition-all active:scale-95 cursor-pointer shrink-0"
+            title="Open Lab Record, Observations & PDF Generator"
+          >
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span className="hidden lg:inline">Record</span>
+          </button>
+        )}
 
-        {/* Whole Project Word Documentation (.docx) Download Button */}
-        <a
-          href="/Aero_Space_Simulator_Project_Documentation.docx"
-          download="Aero_Space_Simulator_Project_Documentation.docx"
-          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-semibold shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/60 transition-all active:scale-95 cursor-pointer shrink-0"
-          title="Download Whole Project Documentation in Word (.docx) Format"
-        >
-          <FileDown className="w-3.5 h-3.5 shrink-0 text-emerald-100" />
-          <span className="hidden lg:inline">Word Doc</span>
-        </a>
+        {/* Whole Project Word Documentation (.docx) Download Button (Online only) */}
+        {!isOfflineExamMode && (
+          <a
+            href="/Aero_Space_Simulator_Project_Documentation.docx"
+            download="Aero_Space_Simulator_Project_Documentation.docx"
+            className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs font-semibold shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/60 transition-all active:scale-95 cursor-pointer shrink-0"
+            title="Download Whole Project Documentation in Word (.docx) Format"
+          >
+            <FileDown className="w-3.5 h-3.5 shrink-0 text-emerald-100" />
+            <span className="hidden lg:inline">Word Doc</span>
+          </a>
+        )}
 
         {/* Fullscreen Icon Button */}
         <button
@@ -244,14 +257,16 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
           {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
         </button>
 
-        {/* Install PWA Icon Button */}
-        <button
-          onClick={handleInstallPWA}
-          className="hidden md:block p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 shrink-0"
-          title="Install Web App on Android/iPhone Home Screen"
-        >
-          <DownloadCloud className="w-3.5 h-3.5" />
-        </button>
+        {/* Install PWA Icon Button (Online only) */}
+        {!isOfflineExamMode && (
+          <button
+            onClick={handleInstallPWA}
+            className="hidden md:block p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 shrink-0"
+            title="Install Web App on Android/iPhone Home Screen"
+          >
+            <DownloadCloud className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* RIGHT SECTION: USER ACCOUNT SYMBOL, USER DETAILS & LOGOUT (Firmly unshrinkable, clean spacing) */}

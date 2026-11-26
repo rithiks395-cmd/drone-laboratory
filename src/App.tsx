@@ -31,7 +31,12 @@ import { LabRecordsView } from './components/experiments/LabRecordsView';
 import { HardwareWorkbenchView } from './components/workbench/HardwareWorkbenchView';
 
 const MainSimulationRouter: React.FC = () => {
-  const { activeView } = useLab();
+  const { activeView, isOfflineExamMode } = useLab();
+
+  // In offline mode: ONLY the workspace operates as requested!
+  if (isOfflineExamMode) {
+    return <HardwareWorkbenchView />;
+  }
 
   switch (activeView) {
     case 'dashboard':
@@ -69,7 +74,7 @@ const MainSimulationRouter: React.FC = () => {
 
 const LabApp: React.FC = () => {
   const workspaceRef = useRef<HTMLDivElement>(null);
-  const { inspectedComponent, closeInspection, openInspection } = useLab();
+  const { inspectedComponent, closeInspection, openInspection, isOfflineExamMode } = useLab();
   const { 
     currentUser, 
     isAdmin, 
@@ -155,8 +160,8 @@ const LabApp: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#040713] text-slate-100 font-sans">
-      {/* MOBILE DEVICE PROMINENT JOYSTICK CALLOUT BANNER (Visible on phones) */}
-      {isMobileDevice && (
+      {/* MOBILE DEVICE PROMINENT JOYSTICK CALLOUT BANNER (Visible on phones in online mode) */}
+      {isMobileDevice && !isOfflineExamMode && (
         <div className="bg-gradient-to-r from-cyan-900 via-blue-900 to-indigo-950 p-2 px-3 border-b-2 border-cyan-400 flex items-center justify-between z-50 shadow-2xl">
           <div className="flex items-center gap-2">
             <Gamepad2 className="w-5 h-5 text-cyan-300 animate-bounce" />

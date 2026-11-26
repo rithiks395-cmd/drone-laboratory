@@ -41,7 +41,9 @@ import {
   Radio,
   Battery,
   Scale,
-  Wind
+  Wind,
+  AlertTriangle,
+  ShieldAlert
 } from 'lucide-react';
 
 // 3D Models
@@ -163,7 +165,9 @@ export const HardwareWorkbenchView: React.FC = () => {
     atmosphereTheme, 
     setActiveView,
     isOfflineExamMode,
-    toggleOfflineExamMode 
+    toggleOfflineExamMode,
+    selectedWorkbenchExpNo,
+    setSelectedWorkbenchExpNo
   } = useLab();
   const { currentUser } = useAuth();
   const workbenchRef = useRef<HTMLDivElement>(null);
@@ -193,6 +197,23 @@ export const HardwareWorkbenchView: React.FC = () => {
   const [tempProjectName, setTempProjectName] = useState<string>('UAV Quadcopter Assembly');
   const [tempFolderName, setTempFolderName] = useState<string>('Semester Practical Labs');
   const [tempSelectedExp, setTempSelectedExp] = useState<number>(1);
+
+  // Offline Exam Final Error Detection & Verification States
+  const [invalidPlacedComponents, setInvalidPlacedComponents] = useState<string[]>([]);
+  const [showFinalEvaluationModal, setShowFinalEvaluationModal] = useState<boolean>(false);
+  const [finalEvaluationResult, setFinalEvaluationResult] = useState<{ errors: string[]; passed: boolean } | null>(null);
+  const [isAssemblyVerified, setIsAssemblyVerified] = useState<boolean>(false);
+
+  // Sync selectedExpNo with global selectedWorkbenchExpNo from sidebar
+  useEffect(() => {
+    if (selectedWorkbenchExpNo && selectedWorkbenchExpNo !== selectedExpNo) {
+      setSelectedExpNo(selectedWorkbenchExpNo);
+      setHasActiveProject(true);
+      setIsAssemblyVerified(false);
+      setFinalEvaluationResult(null);
+      setInvalidPlacedComponents([]);
+    }
+  }, [selectedWorkbenchExpNo]);
 
   // Floating Right-Side Dock State: Tab can be 'components' or 'procedure' (Strictly 'components' when in offline exam mode)
   const [rightPanelTab, setRightPanelTab] = useState<'components' | 'procedure'>('components');
@@ -1210,8 +1231,45 @@ export const HardwareWorkbenchView: React.FC = () => {
     const component = components.find((c) => c.id === droppedCompId);
     if (!component) return;
 
+    if (isOfflineExamMode) {
+      // IN OFFLINE EXAM MODE: Allow student to assemble from memory without live error spoilers.
+      // Final errors are detected when student clicks "CHECK ASSEMBLY & DETECT ERRORS".
+      setComponents((prev) =>
+        prev.map((c) => (c.id === droppedCompId ? { ...c, installed: true } : c))
+      );
+      setUndoStack((prev) => [...prev, droppedCompId]);
+      setRedoStack([]);
+      setIsAssemblyVerified(false);
+      setFinalEvaluationResult(null);
+
+      const matchedStep = activeExpSteps.find((s) => s.targetComponentId === droppedCompId);
+      if (matchedStep) {
+        if (!currentCompletedSteps.includes(matchedStep.stepNo)) {
+          const updatedCompleted = [...currentCompletedSteps, matchedStep.stepNo];
+          setCompletedSteps((prev) => ({
+            ...prev,
+            [selectedExpNo]: updatedCompleted,
+          }));
+        }
+      } else {
+        setInvalidPlacedComponents((prev) => [...prev, component.name]);
+      }
+
+      setValidationAlert({
+        type: 'success',
+        title: 'PART ASSEMBLED',
+        message: `✓ "${component.name}" placed into workspace assembly.`,
+        componentName: component.name,
+      });
+
+      setTimeout(() => {
+        setValidationAlert(null);
+      }, 3000);
+      return;
+    }
+
     if (nextExpectedStep && nextExpectedStep.targetComponentId === droppedCompId) {
-      // SUCCESS: Correct component dropped into place
+      // SUCCESS: Correct component dropped into place (Online Guided Study)
       setComponents((prev) =>
         prev.map((c) => (c.id === droppedCompId ? { ...c, installed: true } : c))
       );
@@ -1241,9 +1299,7 @@ export const HardwareWorkbenchView: React.FC = () => {
         title: 'COMPONENT ASSEMBLED',
         message: isNowFullyDone
           ? `✓ SUCCESS: "${component.name}" mounted! Assembly is 100% complete and ready to execute.`
-          : isOfflineExamMode
-            ? `✓ SUCCESS: "${component.name}" correctly placed in position! Continue assembling.`
-            : `✓ SUCCESS: "${component.name}" placed in position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
+          : `✓ SUCCESS: "${component.name}" placed in position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
         componentName: component.name,
       });
 
@@ -1251,28 +1307,48 @@ export const HardwareWorkbenchView: React.FC = () => {
         setRightPanelTab('procedure');
       }
     } else {
-      // ERROR: Wrong component
-      if (isOfflineExamMode) {
-        setValidationAlert({
-          type: 'error',
-          title: 'WRONG COMPONENT SELECTED',
-          message: `⚠ INCORRECT: "${component.name}" is not the correct component for this stage. Re-evaluate using your practical aeronautical knowledge!`,
-          componentName: component.name,
-        });
-      } else {
-        const expectedPart = nextExpectedStep?.targetComponentName || 'the next procedure component';
-        setValidationAlert({
-          type: 'error',
-          title: 'WRONG COMPONENT SELECTED',
-          message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You chose "${component.name}". Follow procedure on the right!`,
-          componentName: component.name,
-        });
-      }
+      // ERROR: Wrong component (Online Guided Study)
+      const expectedPart = nextExpectedStep?.targetComponentName || 'the next procedure component';
+      setValidationAlert({
+        type: 'error',
+        title: 'WRONG COMPONENT SELECTED',
+        message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You chose "${component.name}". Follow procedure on the right!`,
+        componentName: component.name,
+      });
     }
 
     setTimeout(() => {
       setValidationAlert(null);
     }, 4500);
+  };
+
+  // Evaluate Assembly & Detect Final Errors in Offline Exam Mode
+  const handleCheckAssemblyErrors = () => {
+    const errors: string[] = [];
+
+    // 1. Missing Required Steps
+    const missingSteps = activeExpSteps.filter((s) => !currentCompletedSteps.includes(s.stepNo));
+    missingSteps.forEach((s) => {
+      errors.push(`Missing Required Component: "${s.targetComponentName}" has not been mounted.`);
+    });
+
+    // 2. Incompatible / Foreign Hardware Placed
+    if (invalidPlacedComponents.length > 0) {
+      const uniqueInvalid = Array.from(new Set(invalidPlacedComponents));
+      uniqueInvalid.forEach((name) => {
+        errors.push(`Incompatible Component: "${name}" does not belong to this aeronautical configuration.`);
+      });
+    }
+
+    if (errors.length > 0) {
+      setFinalEvaluationResult({ errors, passed: false });
+      setIsAssemblyVerified(false);
+      setShowFinalEvaluationModal(true);
+    } else {
+      setFinalEvaluationResult({ errors: [], passed: true });
+      setIsAssemblyVerified(true);
+      setShowFinalEvaluationModal(true);
+    }
   };
 
   // Undo Last Placed Component
@@ -1295,6 +1371,13 @@ export const HardwareWorkbenchView: React.FC = () => {
 
     setUndoStack(newUndo);
     setRedoStack((prev) => [...prev, lastCompId]);
+    setIsAssemblyVerified(false);
+    setFinalEvaluationResult(null);
+
+    const undoneComp = components.find(c => c.id === lastCompId);
+    if (undoneComp) {
+      setInvalidPlacedComponents(prev => prev.filter(name => name !== undoneComp.name));
+    }
 
     setValidationAlert({
       type: 'success',
@@ -1336,6 +1419,9 @@ export const HardwareWorkbenchView: React.FC = () => {
       }));
       setUndoStack([]);
       setRedoStack([]);
+      setInvalidPlacedComponents([]);
+      setIsAssemblyVerified(false);
+      setFinalEvaluationResult(null);
       setIsTestRunning(false);
       setTestThrottle(0);
       setValidationAlert({
@@ -1707,7 +1793,7 @@ export const HardwareWorkbenchView: React.FC = () => {
 
               {/* SELECT EXPERIMENT OR EXAM TASK */}
               <label className="block text-xs font-bold text-slate-200 mb-2">
-                {isOfflineExamMode ? 'SELECT PRACTICAL EXAM TASK (STATIONS 1 TO 10):' : 'SELECT EXPERIMENT NO (1 TO 10):'}
+                {isOfflineExamMode ? 'SELECT EXPERIMENT:' : 'SELECT EXPERIMENT NO (1 TO 10):'}
               </label>
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-h-44 overflow-y-auto p-1 custom-scrollbar mb-5">
@@ -1724,13 +1810,15 @@ export const HardwareWorkbenchView: React.FC = () => {
                           : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
                       }`}
                     >
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className={`text-[11px] font-bold ${isSelected ? 'text-amber-300' : 'text-cyan-400'}`}>
-                          {isOfflineExamMode ? `TASK ${num}` : `EX ${num}`}
-                        </span>
-                      </div>
-                      <div className="text-[9px] line-clamp-1 text-slate-400">
-                        {isOfflineExamMode ? 'Practical Exam Assessment (No Procedure)' : guide?.title}
+                      {!isOfflineExamMode && (
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className={`text-[11px] font-bold ${isSelected ? 'text-amber-300' : 'text-cyan-400'}`}>
+                            EX {num}
+                          </span>
+                        </div>
+                      )}
+                      <div className="text-[10px] font-semibold line-clamp-2 text-slate-200">
+                        {guide?.title}
                       </div>
                     </button>
                   );
@@ -1865,14 +1953,20 @@ export const HardwareWorkbenchView: React.FC = () => {
             <span>PROJECTS</span>
           </button>
 
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-300 shrink-0">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="text-cyan-400 font-bold truncate max-w-[100px] sm:max-w-[130px]">{folderName} /</span>
-            <span className="text-amber-300 font-bold truncate max-w-[110px] sm:max-w-[150px]">{projectName}</span>
-            <span className="text-cyan-300 font-bold">
-              {isOfflineExamMode ? `| PRACTICAL EXAM TASK ${selectedExpNo}` : `| EX ${selectedExpNo}`}
-            </span>
-          </div>
+          {isOfflineExamMode ? (
+            /* EX NAME CAN BE THERE ONLY NAME */
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/90 border border-amber-500/50 text-amber-300 font-bold text-xs sm:text-sm max-w-lg truncate shadow-sm">
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0"></span>
+              <span className="truncate">{activeGuide.title}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-300 shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+              <span className="text-cyan-400 font-bold truncate max-w-[100px] sm:max-w-[130px]">{folderName} /</span>
+              <span className="text-amber-300 font-bold truncate max-w-[110px] sm:max-w-[150px]">{projectName}</span>
+              <span className="text-cyan-300 font-bold">| EX {selectedExpNo}</span>
+            </div>
+          )}
 
           {/* OFFLINE EXAM MODE BADGE / TOGGLE */}
           <button
@@ -2271,11 +2365,11 @@ export const HardwareWorkbenchView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-[#091024]/90 border border-cyan-500/40 max-w-sm shadow-xl backdrop-blur-md">
               <Crosshair className="w-8 h-8 text-cyan-400 mx-auto mb-2 animate-pulse" />
               <h3 className="text-xs font-bold font-mono text-white mb-1">
-                {isOfflineExamMode ? 'PRACTICAL EXAM BLUEPRINT' : 'PUZZLE BLUEPRINT READY'}
+                {isOfflineExamMode ? activeGuide.title : 'PUZZLE BLUEPRINT READY'}
               </h3>
               <p className="text-[11px] text-slate-300 font-mono leading-relaxed">
                 {isOfflineExamMode ? (
-                  'Practical Assessment: Select and drag the required initial aeronautical component from the tray onto the workspace blueprint.'
+                  'Practical Examination Workspace: Type component name in the dock to retrieve parts from inventory, then place onto blueprint.'
                 ) : (
                   <>
                     Step 1: Drag <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the components tray and drop it onto the glowing outline!
@@ -2345,81 +2439,113 @@ export const HardwareWorkbenchView: React.FC = () => {
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="p-3 border-b border-slate-800 flex flex-col gap-2 bg-[#050914] shrink-0">
                   <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Search className="w-3.5 h-3.5 text-cyan-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Search components (motor, esc, frame...)"
+                      placeholder={isOfflineExamMode ? "Type component name to retrieve (e.g. motor, esc...)" : "Search components (motor, esc, frame...)"}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400"
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400 font-mono"
                     />
-                  </div>
-
-                  <div className="flex items-center gap-1 overflow-x-auto text-[10px] pb-0.5 custom-scrollbar">
-                    {['All', 'Mechanical', 'Propulsion', 'Avionics', 'Power', 'Wires & Linkages'].map((cat) => (
+                    {searchQuery && (
                       <button
-                        key={cat}
-                        onClick={() => setActiveCategory(cat)}
-                        className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap cursor-pointer ${
-                          activeCategory === cat ? 'bg-cyan-600 text-white font-bold' : 'bg-slate-900 text-slate-400 hover:text-white'
-                        }`}
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs"
                       >
-                        {cat}
+                        ✕
                       </button>
-                    ))}
+                    )}
                   </div>
-                </div>
 
-                <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
-                  {filteredComponents.map((item) => (
-                    <div
-                      key={item.id}
-                      draggable={!item.installed}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', item.id);
-                        e.dataTransfer.effectAllowed = 'move';
-                      }}
-                      className={`p-2.5 rounded-xl border transition-all flex gap-3 cursor-grab active:cursor-grabbing select-none ${
-                        item.installed
-                          ? 'bg-emerald-950/30 border-emerald-500/40 opacity-75'
-                          : 'bg-slate-900/80 border-slate-800 hover:border-cyan-400/60'
-                      }`}
-                    >
-                      <ComponentVisualBadge visualType={item.visualType} isInstalled={item.installed} />
-
-                      <div className="flex-1 flex flex-col justify-between min-w-0">
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-white text-[11px] truncate">
-                              {item.name}
-                            </span>
-                            <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 font-mono shrink-0 ml-1">
-                              {item.weightG}g
-                            </span>
-                          </div>
-                          <p className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">{item.model}</p>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[8px] text-slate-500 uppercase tracking-wider">
-                            {item.category}
-                          </span>
-
-                          {item.installed ? (
-                            <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
-                              <Check className="w-3 h-3" /> Placed
-                            </span>
-                          ) : (
-                            <span className="text-[9px] text-cyan-400 font-bold flex items-center gap-1 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/30">
-                              <Move className="w-2.5 h-2.5" />
-                              <span>Drag to Blueprint</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                  {!isOfflineExamMode && (
+                    <div className="flex items-center gap-1 overflow-x-auto text-[10px] pb-0.5 custom-scrollbar">
+                      {['All', 'Mechanical', 'Propulsion', 'Avionics', 'Power', 'Wires & Linkages'].map((cat) => (
+                        <button
+                          key={cat}
+                          onClick={() => setActiveCategory(cat)}
+                          className={`px-2 py-0.5 rounded transition-colors whitespace-nowrap cursor-pointer ${
+                            activeCategory === cat ? 'bg-cyan-600 text-white font-bold' : 'bg-slate-900 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
                     </div>
-                  ))}
+                  )}
                 </div>
+
+                {/* IN OFFLINE EXAM MODE: COMPONENTS ARE NOT PRE-LISTED UNTIL TYPED */}
+                {isOfflineExamMode && searchQuery.trim() === '' ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center select-none">
+                    <div className="w-12 h-12 rounded-2xl bg-cyan-950/60 border border-cyan-500/40 flex items-center justify-center text-cyan-400 mb-3 shadow-[0_0_20px_rgba(6,182,212,0.2)]">
+                      <Search className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <h4 className="text-xs font-bold font-mono text-white mb-1.5 uppercase tracking-wider">
+                      TYPE TO RETRIEVE HARDWARE
+                    </h4>
+                    <p className="text-[11px] text-slate-400 font-mono max-w-xs leading-relaxed">
+                      Components are not pre-listed for practical examination. Type the required aeronautical component name (e.g. <span className="text-cyan-300 font-semibold">motor</span>, <span className="text-amber-300 font-semibold">esc</span>, <span className="text-emerald-300 font-semibold">battery</span>, <span className="text-purple-300 font-semibold">propeller</span>, <span className="text-sky-300 font-semibold">frame</span>, <span className="text-rose-300 font-semibold">wing</span>, <span className="text-indigo-300 font-semibold">servo</span>, <span className="text-teal-300 font-semibold">receiver</span>, <span className="text-amber-200 font-semibold">kk</span>) based on your knowledge.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
+                    {filteredComponents.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 text-center text-slate-400 text-xs font-mono">
+                        <span>No matching component found for "{searchQuery}".</span>
+                        <span className="text-[10px] text-slate-500 mt-1">Check spelling or search another component name.</span>
+                      </div>
+                    ) : (
+                      filteredComponents.map((item) => (
+                        <div
+                          key={item.id}
+                          draggable={!item.installed}
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('text/plain', item.id);
+                            e.dataTransfer.effectAllowed = 'move';
+                          }}
+                          className={`p-2.5 rounded-xl border transition-all flex gap-3 cursor-grab active:cursor-grabbing select-none ${
+                            item.installed
+                              ? 'bg-emerald-950/30 border-emerald-500/40 opacity-75'
+                              : 'bg-slate-900/80 border-slate-800 hover:border-cyan-400/60'
+                          }`}
+                        >
+                          <ComponentVisualBadge visualType={item.visualType} isInstalled={item.installed} />
+
+                          <div className="flex-1 flex flex-col justify-between min-w-0">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-white text-[11px] truncate">
+                                  {item.name}
+                                </span>
+                                <span className="text-[9px] px-1.5 py-0.2 rounded bg-slate-800 text-cyan-300 font-mono shrink-0 ml-1">
+                                  {item.weightG}g
+                                </span>
+                              </div>
+                              <p className="text-[9px] text-slate-400 line-clamp-1 mt-0.5">{item.model}</p>
+                            </div>
+
+                            <div className="flex items-center justify-between pt-1">
+                              <span className="text-[8px] text-slate-500 uppercase tracking-wider">
+                                {item.category}
+                              </span>
+
+                              {item.installed ? (
+                                <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
+                                  <Check className="w-3 h-3" /> Placed
+                                </span>
+                              ) : (
+                                <span className="text-[9px] text-cyan-400 font-bold flex items-center gap-1 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/30">
+                                  <Move className="w-2.5 h-2.5" />
+                                  <span>Drag to Blueprint</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
 
                 <div className="p-2.5 border-t border-slate-800 bg-[#040814] flex flex-col gap-2 shrink-0">
                   <div className="flex items-center justify-between text-[11px]">
@@ -2427,27 +2553,37 @@ export const HardwareWorkbenchView: React.FC = () => {
                     <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
                   </div>
 
-                  {/* IN OFFLINE EXAM MODE: SHOW DIRECT EXECUTE BUTTON WHEN ASSEMBLY IS COMPLETED */}
+                  {/* IN OFFLINE EXAM MODE: SHOW FINAL ERROR DETECTION & VERIFICATION CONTROLS */}
                   {isOfflineExamMode && (
-                    <div className="pt-1 border-t border-slate-800/80">
-                      <div className="flex items-center justify-between text-[10px] mb-1.5 font-mono">
-                        <span className="text-slate-400">PRACTICAL STATUS:</span>
-                        <span className={isExpFullyAssembled ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
-                          {isExpFullyAssembled ? '✓ FULLY ASSEMBLED' : `${currentCompletedSteps.length}/${activeExpSteps.length} PARTS MOUNTED`}
+                    <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                      <div className="flex items-center justify-between text-[10px] font-mono">
+                        <span className="text-slate-400">EXAM VERIFICATION:</span>
+                        <span className={isAssemblyVerified ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold'}>
+                          {isAssemblyVerified ? '✓ VERIFIED (0 ERRORS)' : 'UNCHECKED'}
                         </span>
                       </div>
-                      <button
-                        onClick={handleRunAndExecute}
-                        disabled={!isExpFullyAssembled}
-                        className={`w-full py-2.5 rounded-xl font-black text-xs tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                          isExpFullyAssembled
-                            ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.5)] active:scale-95'
-                            : 'bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed opacity-60'
-                        }`}
-                      >
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>{isExpFullyAssembled ? 'RUN & EXECUTE EXPERIMENT' : 'ASSEMBLE ALL PARTS TO RUN'}</span>
-                      </button>
+
+                      {/* BUTTON 1: CHECK ASSEMBLY & DETECT ERRORS */}
+                      {!isAssemblyVerified && (
+                        <button
+                          onClick={handleCheckAssemblyErrors}
+                          className="w-full py-2.5 rounded-xl font-black text-xs tracking-wider flex items-center justify-center gap-2 bg-gradient-to-r from-amber-500 to-cyan-500 hover:from-amber-400 hover:to-cyan-400 text-slate-950 shadow-[0_0_20px_rgba(245,158,11,0.4)] active:scale-95 transition-all cursor-pointer"
+                        >
+                          <ShieldAlert className="w-4 h-4 text-slate-950" />
+                          <span>CHECK ASSEMBLY & DETECT ERRORS</span>
+                        </button>
+                      )}
+
+                      {/* BUTTON 2: RUN & EXECUTE EXPERIMENT (ENABLED ONLY ONCE VERIFIED) */}
+                      {isAssemblyVerified && (
+                        <button
+                          onClick={handleRunAndExecute}
+                          className="w-full py-2.5 rounded-xl font-black text-xs tracking-wider flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-500 to-cyan-400 hover:from-emerald-400 hover:to-cyan-300 text-slate-950 shadow-[0_0_25px_rgba(16,185,129,0.6)] active:scale-95 transition-all cursor-pointer animate-pulse"
+                        >
+                          <Play className="w-4 h-4 fill-current text-slate-950" />
+                          <span>RUN & EXECUTE EXPERIMENT</span>
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2680,7 +2816,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="px-2 py-0.5 rounded bg-cyan-950 border border-cyan-500/50 text-cyan-300 text-[10px] font-bold">
-                      {isOfflineExamMode ? 'PRACTICAL EXAM TELEMETRY' : `EX ${selectedExpNo} EXECUTION TELEMETRY`}
+                      {isOfflineExamMode ? 'HARDWARE EXECUTION TELEMETRY' : `EX ${selectedExpNo} EXECUTION TELEMETRY`}
                     </span>
                     <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
@@ -2688,7 +2824,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                     </span>
                   </div>
                   <h3 className="text-sm sm:text-base font-bold text-white mt-0.5">
-                    {isOfflineExamMode ? `Hardware Execution & Output Readings (Station ${selectedExpNo})` : activeGuide.title}
+                    {activeGuide.title}
                   </h3>
                 </div>
               </div>
@@ -3877,28 +4013,30 @@ export const HardwareWorkbenchView: React.FC = () => {
 
             {/* Modal Footer Action Buttons */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-3 mt-3 border-t border-cyan-500/20 shrink-0">
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleCaptureWorkspace}
-                  disabled={isCapturingScreenshot}
-                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-glow-cyan flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-                >
-                  <Camera className="w-4 h-4" />
-                  <span>{isCapturingScreenshot ? 'Capturing...' : 'SCREENSHOT OUTPUT'}</span>
-                </button>
+              {!isOfflineExamMode && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleCaptureWorkspace}
+                    disabled={isCapturingScreenshot}
+                    className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-glow-cyan flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <Camera className="w-4 h-4" />
+                    <span>{isCapturingScreenshot ? 'Capturing...' : 'SCREENSHOT OUTPUT'}</span>
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setShowOutputModal(false);
-                    setSelectedReportExpId(selectedExpNo);
-                    setIsRecordModalOpen(true);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
-                >
-                  <FileText className="w-4 h-4" />
-                  <span>GENERATE OFFICIAL LAB RECORD</span>
-                </button>
-              </div>
+                  <button
+                    onClick={() => {
+                      setShowOutputModal(false);
+                      setSelectedReportExpId(selectedExpNo);
+                      setIsRecordModalOpen(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>GENERATE OFFICIAL LAB RECORD</span>
+                  </button>
+                </div>
+              )}
 
               <button
                 onClick={() => setShowOutputModal(false)}
@@ -3908,6 +4046,90 @@ export const HardwareWorkbenchView: React.FC = () => {
               </button>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* 6. MODAL: FINAL ASSEMBLY EVALUATION & ERROR DIAGNOSTICS */}
+      {showFinalEvaluationModal && finalEvaluationResult && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+          <div className={`relative max-w-lg w-full rounded-2xl p-6 border-2 shadow-2xl font-mono text-slate-100 ${
+            finalEvaluationResult.passed
+              ? 'bg-gradient-to-br from-[#061e1b] via-[#041417] to-[#020b0d] border-emerald-400 shadow-[0_0_50px_rgba(16,185,129,0.4)]'
+              : 'bg-gradient-to-br from-[#24080c] via-[#1a060a] to-[#0e0306] border-rose-500 shadow-[0_0_50px_rgba(244,63,94,0.5)]'
+          }`}>
+            <div className="flex items-center justify-between border-b pb-3 mb-4 border-slate-700">
+              <div className="flex items-center gap-2.5">
+                {finalEvaluationResult.passed ? (
+                  <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                ) : (
+                  <AlertTriangle className="w-6 h-6 text-rose-400 animate-pulse" />
+                )}
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">
+                    {finalEvaluationResult.passed
+                      ? 'ASSEMBLY 100% VERIFIED'
+                      : `ASSEMBLY ERRORS DETECTED (${finalEvaluationResult.errors.length})`}
+                  </h3>
+                  <p className="text-[10px] text-slate-400">{activeGuide.title}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowFinalEvaluationModal(false)}
+                className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            {finalEvaluationResult.passed ? (
+              <div className="space-y-4">
+                <div className="p-3.5 rounded-xl bg-emerald-950/60 border border-emerald-500/40 text-emerald-200 text-xs leading-relaxed">
+                  ✓ All required aeronautical components have been identified, retrieved, and correctly placed in accordance with the syllabus specifications. Zero errors detected.
+                </div>
+                <button
+                  onClick={() => {
+                    setShowFinalEvaluationModal(false);
+                    handleRunAndExecute();
+                  }}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-400 to-cyan-400 text-slate-950 font-black text-xs tracking-wider flex items-center justify-center gap-2 shadow-lg cursor-pointer active:scale-95"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span>LAUNCH HARDWARE EXECUTION NOW</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xs text-rose-300 font-semibold">
+                  The assembly cannot execute because the following errors were detected in your configuration:
+                </p>
+                <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                  {finalEvaluationResult.errors.map((err, idx) => (
+                    <div key={idx} className="p-2.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-200 text-xs flex items-start gap-2">
+                      <span className="text-rose-400 font-bold shrink-0">•</span>
+                      <span>{err}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2 pt-2">
+                  <button
+                    onClick={() => setShowFinalEvaluationModal(false)}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs tracking-wider cursor-pointer"
+                  >
+                    RETURN & CORRECT ASSEMBLY
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowFinalEvaluationModal(false);
+                      handleResetWorkbench();
+                    }}
+                    className="px-4 py-2.5 rounded-xl bg-rose-950/80 hover:bg-rose-900 border border-rose-500/50 text-rose-300 font-bold text-xs cursor-pointer"
+                  >
+                    RESET BENCH
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -43,6 +43,10 @@ interface LabContextType {
   // Offline Practical Exam Mode (No Procedures, Hidden Titles for Exam Assessment)
   isOfflineExamMode: boolean;
   toggleOfflineExamMode: (forcedVal?: boolean) => void;
+
+  // Selected Workbench Station / Experiment Number
+  selectedWorkbenchExpNo: number;
+  setSelectedWorkbenchExpNo: (no: number) => void;
 }
 
 const LabContext = createContext<LabContextType | undefined>(undefined);
@@ -131,6 +135,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const saved = localStorage.getItem('uav_exam_mode_override');
     return saved !== null ? saved === 'true' : null;
   });
+
+  const [selectedWorkbenchExpNo, setSelectedWorkbenchExpNo] = useState<number>(1);
 
   useEffect(() => {
     const handleOnline = () => setIsBrowserOffline(false);
@@ -299,6 +305,8 @@ export const LabProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setIsPhoneModalOpen,
         isOfflineExamMode,
         toggleOfflineExamMode,
+        selectedWorkbenchExpNo,
+        setSelectedWorkbenchExpNo,
       }}
     >
       {children}

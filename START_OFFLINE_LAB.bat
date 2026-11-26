@@ -1,10 +1,10 @@
 @echo off
-title UAV VIRTUAL LAB - Offline Launch System
+title AERO - SPACE SIMULATOR - Offline Laboratory
 color 0b
 cls
 
 echo =========================================================================
-echo       UAV VIRTUAL LAB - ADVANCED 3D DRONE ENGINEERING SIMULATOR
+echo       AERO - SPACE SIMULATOR - ADVANCED 3D VIRTUAL LABORATORY
 echo                     OFFLINE LABORATORY LAUNCHER
 echo =========================================================================
 echo.

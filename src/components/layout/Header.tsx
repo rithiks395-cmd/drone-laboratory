@@ -4,12 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   Camera, 
   FileText, 
-  RotateCcw, 
-  Cpu, 
-  Activity, 
   Compass, 
   User, 
-  Award,
   Search,
   Sun,
   Moon,
@@ -21,8 +17,7 @@ import {
   Wrench,
   Home,
   LogOut,
-  ShieldCheck,
-  Sparkles
+  ShieldCheck
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -34,15 +29,9 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
   const { currentUser, isAdmin, logout, setIsAuthModalOpen, setIsAdminPortalOpen } = useAuth();
   const {
     activeView,
-    experiments,
-    resetAllProgress,
     captureScreenshot,
     setIsRecordModalOpen,
     setSelectedReportExpId,
-    studentName,
-    setStudentName,
-    rollNumber,
-    setRollNumber,
     openInspection,
     atmosphereTheme,
     toggleAtmosphereTheme,
@@ -51,28 +40,9 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
     setActiveView,
   } = useLab();
 
-  const [fps, setFps] = useState(60);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [showStudentEdit, setShowStudentEdit] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
-
-  useEffect(() => {
-    let frameCount = 0;
-    let lastTime = performance.now();
-    const loop = () => {
-      frameCount++;
-      const now = performance.now();
-      if (now - lastTime >= 1000) {
-        setFps(Math.min(60, Math.round((frameCount * 1000) / (now - lastTime))));
-        frameCount = 0;
-        lastTime = now;
-      }
-      requestAnimationFrame(loop);
-    };
-    const req = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(req);
-  }, []);
 
   // Track PWA install prompt
   useEffect(() => {
@@ -106,8 +76,6 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
     }
   };
 
-  const completedCount = experiments.filter((e) => e.completed).length;
-
   const handleCapture = async () => {
     setIsCapturing(true);
     let expId: number | undefined;
@@ -130,10 +98,9 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
   const isDay = atmosphereTheme === 'day';
 
   return (
-    <header className="h-16 border-b border-cyan-500/20 bg-[#090d19]/95 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between z-30 sticky top-0">
-      {/* Brand & Mobile Hamburger */}
-      <div className="flex items-center gap-2 sm:gap-3">
-        {/* Mobile Hamburger Drawer Button */}
+    <header className="h-16 border-b border-cyan-500/20 bg-[#070b16]/95 backdrop-blur-md px-3 sm:px-4 flex items-center justify-between z-30 sticky top-0 shadow-lg">
+      {/* LEFT SECTION: Brand Logo & Mobile Toggle */}
+      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           className="lg:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white"
@@ -142,14 +109,14 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
           <Menu className="w-5 h-5 text-cyan-400" />
         </button>
 
-        <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-700 flex items-center justify-center shadow-glow-cyan shrink-0">
+        <div className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-gradient-to-br from-cyan-500 via-sky-600 to-blue-700 flex items-center justify-center shadow-glow-cyan shrink-0">
           <Compass className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse border border-[#090d19]"></div>
+          <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse border border-[#070b16]"></div>
         </div>
 
         <div>
           <div className="flex items-center gap-1.5 sm:gap-2">
-            <h1 className="text-sm sm:text-base font-bold tracking-wider text-slate-100 flex items-center gap-1">
+            <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-wider text-slate-100 flex items-center gap-1">
               <span className="bg-gradient-to-r from-cyan-400 via-sky-300 to-amber-300 bg-clip-text text-transparent font-black">
                 RITHIK'S DRONE LAB
               </span>
@@ -158,173 +125,181 @@ export const Header: React.FC<HeaderProps> = ({ workspaceRef, onReturnToIntro })
               </span>
             </h1>
           </div>
-          <p className="hidden md:block text-[11px] text-slate-400 font-mono tracking-tight">
-            Aerospace Engineering Virtual Laboratory & 3D Flight Simulator
+          <p className="hidden xl:block text-[10px] text-slate-400 font-mono tracking-tight">
+            Aerospace Virtual Laboratory & 3D Flight Simulator
           </p>
         </div>
       </div>
 
-      {/* Middle Telemetry Badges */}
-      <div className="hidden xl:flex items-center gap-3 text-xs font-mono">
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0f172a] border border-cyan-500/30">
-          <Activity className="w-3.5 h-3.5 text-emerald-400 animate-pulse" />
-          <span className="text-slate-400">ENGINE:</span>
-          <span className="text-emerald-400 font-semibold">{fps} FPS</span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0f172a] border border-cyan-500/30">
-          <Cpu className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="text-slate-400">ATMOSPHERE:</span>
-          <span className="text-cyan-300 uppercase">{atmosphereTheme} AIRFIELD</span>
-        </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#0f172a] border border-cyan-500/30">
-          <Award className="w-3.5 h-3.5 text-amber-400" />
-          <span className="text-slate-400">COMPLETED:</span>
-          <span className="text-amber-400 font-bold">{completedCount} / 10</span>
-        </div>
-      </div>
-
-      {/* Right Controls: Theme Toggle, Hardware Inspector, Capture, Report, Fullscreen */}
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        {/* RETURN TO FULLSCREEN INTRO SCREEN BUTTON */}
+      {/* CENTER SECTION: Primary Lab Action Tools (Optimized spacing so right side never overflows) */}
+      <div className="flex items-center gap-1 sm:gap-1.5 overflow-x-hidden">
+        {/* Intro Page Return */}
         {onReturnToIntro && (
           <button
             onClick={onReturnToIntro}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold transition-all shadow-sm cursor-pointer"
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold transition-all shadow-sm cursor-pointer shrink-0"
             title="Return to Rithik's Aero-Space Laboratory Welcome Intro Screen"
           >
             <Home className="w-3.5 h-3.5 text-cyan-400" />
-            <span className="hidden lg:inline">Intro Page</span>
+            <span className="hidden md:inline">Intro Page</span>
           </button>
         )}
 
-        {/* ADMIN PORTAL ACCESS BUTTON (If logged in as Admin: RITHIK or LAKSHMI NARASIMMAN) */}
-        {isAdmin && (
-          <button
-            onClick={() => setIsAdminPortalOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400 text-xs font-mono font-black shadow-[0_0_15px_rgba(245,158,11,0.5)] transition-all cursor-pointer animate-pulse"
-            title="Open Master Administrator Dashboard"
-          >
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
-            <span className="tracking-wide">Admin Portal</span>
-          </button>
-        )}
-
-        {/* HARDWARE ASSEMBLY BENCH SHORTCUT */}
+        {/* Assembly Lab Workbench (Highlighted prominent button) */}
         <button
           onClick={() => setActiveView('hardware-workbench')}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md cursor-pointer ${
+          className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shadow-md cursor-pointer shrink-0 ${
             activeView === 'hardware-workbench'
-              ? 'bg-amber-500/30 text-amber-300 border-amber-400 shadow-glow-amber ring-1 ring-amber-400/50'
+              ? 'bg-amber-500/30 text-amber-300 border-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.5)] ring-1 ring-amber-400/50'
               : 'bg-gradient-to-r from-amber-600/30 to-amber-700/20 text-amber-300 border-amber-500/50 hover:bg-amber-600/40 hover:text-white'
           }`}
-          title="Open Virtual Hardware Assembly Workbench & Physical Experiments"
+          title="Open Virtual Hardware Assembly Workbench & 3D Components"
         >
           <Wrench className="w-3.5 h-3.5 text-amber-400 animate-bounce" />
           <span className="font-bold tracking-wide">Assembly Lab</span>
         </button>
 
-        {/* PHONE RC TRANSMITTER SHORTCUT */}
+        {/* Phone Joystick Controller */}
         <button
           onClick={() => setActiveView('flight-simulator')}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+          className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shrink-0 ${
             activeView === 'flight-simulator'
               ? 'bg-cyan-500/20 text-cyan-300 border-cyan-400 shadow-glow-cyan'
-              : 'bg-slate-800 text-cyan-400 border-cyan-500/40 hover:bg-slate-700'
+              : 'bg-slate-800/90 text-cyan-400 border-cyan-500/30 hover:bg-slate-700'
           }`}
           title="Fly 3D drone using your phone as joystick controller"
         >
-          <Smartphone className="w-4 h-4 text-cyan-400" />
-          <span className="hidden sm:inline">Phone Joystick</span>
+          <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+          <span className="hidden lg:inline">Phone Joystick</span>
         </button>
 
-        {/* DAYTIME / NIGHTTIME ATMOSPHERE SWITCH BUTTON */}
+        {/* Daytime / Nighttime Atmosphere Switch */}
         <button
           onClick={toggleAtmosphereTheme}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border ${
+          className={`flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold transition-all border shrink-0 ${
             isDay
-              ? 'bg-amber-500/20 text-amber-300 border-amber-400/50 shadow-md'
-              : 'bg-slate-800 text-cyan-300 border-cyan-500/30 hover:bg-slate-700'
+              ? 'bg-amber-500/20 text-amber-300 border-amber-400/50'
+              : 'bg-slate-800/90 text-cyan-300 border-cyan-500/30 hover:bg-slate-700'
           }`}
-          title={isDay ? 'Switch to Night Aerospace HUD' : 'Switch to Daylight Airfield Atmosphere'}
+          title={isDay ? 'Switch to Night Aerospace HUD' : 'Switch to Daylight Airfield'}
         >
-          {isDay ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-cyan-400" />}
-          <span className="hidden sm:inline">{isDay ? 'Day Airfield' : 'Night HUD'}</span>
+          {isDay ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-cyan-400" />}
+          <span className="hidden xl:inline">{isDay ? 'Day' : 'Night'}</span>
         </button>
 
-        {/* 3D Hardware Inspector */}
+        {/* 3D Hardware Micro-Inspector */}
         <button
           onClick={() => openInspection('Brushless DC Motor')}
-          className="hidden md:flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all"
+          className="hidden lg:flex items-center gap-1 px-2 py-1.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition-all shrink-0"
           title="Open Photorealistic 3D Component Micro-Inspector"
         >
           <Search className="w-3.5 h-3.5 text-cyan-400" />
-          <span className="hidden lg:inline">3D Inspector</span>
+          <span>3D View</span>
         </button>
 
-        {/* PWA Install / Home Screen Shortcut */}
-        <button
-          onClick={handleInstallPWA}
-          className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700"
-          title="Install Web App on Android/iPhone Home Screen"
-        >
-          <DownloadCloud className="w-4 h-4" />
-        </button>
-
-        {/* Fullscreen Toggle */}
-        <button
-          onClick={toggleFullscreen}
-          className="hidden sm:block p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700"
-          title="Toggle Fullscreen"
-        >
-          {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-        </button>
-
-        {/* Output Screenshot Button */}
+        {/* Screenshot Capture Button */}
         <button
           onClick={handleCapture}
           disabled={isCapturing}
-          className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-semibold shadow-glow-cyan border border-cyan-400/50 transition-all active:scale-95 disabled:opacity-50"
+          className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg bg-cyan-600/80 hover:bg-cyan-500 text-white text-xs font-semibold shadow-glow-cyan border border-cyan-400/50 transition-all active:scale-95 disabled:opacity-50 shrink-0"
           title="Capture simulation workspace output screenshot"
         >
           <Camera className="w-3.5 h-3.5" />
-          <span className="hidden md:inline">{isCapturing ? 'Capturing...' : 'Screenshot'}</span>
+          <span className="hidden md:inline">{isCapturing ? '...' : 'Screenshot'}</span>
         </button>
 
         {/* Lab Record Generator Button */}
         <button
           onClick={handleOpenReport}
-          className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue border border-blue-400/50 transition-all active:scale-95 cursor-pointer"
+          className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg bg-blue-600/80 hover:bg-blue-500 text-white text-xs font-semibold shadow-glow-blue border border-blue-400/50 transition-all active:scale-95 cursor-pointer shrink-0"
           title="Open Lab Record, Observations & PDF Generator"
         >
           <FileText className="w-3.5 h-3.5" />
           <span className="hidden md:inline">Record</span>
         </button>
 
-        {/* USER PROFILE & AUTHENTICATION PILL */}
+        {/* Fullscreen Icon Button */}
+        <button
+          onClick={toggleFullscreen}
+          className="hidden sm:block p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 shrink-0"
+          title="Toggle Fullscreen"
+        >
+          {isFullscreen ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+        </button>
+
+        {/* Install PWA Icon Button */}
+        <button
+          onClick={handleInstallPWA}
+          className="hidden sm:block p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 border border-slate-700 shrink-0"
+          title="Install Web App on Android/iPhone Home Screen"
+        >
+          <DownloadCloud className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      {/* RIGHT SECTION: USER ACCOUNT SYMBOL, USER DETAILS & LOGOUT (Unshrinkable, always prominently visible) */}
+      <div className="flex items-center gap-2 shrink-0 pl-2 border-l border-slate-700/80">
+        {/* Admin Portal Button if user has Master Admin role */}
+        {isAdmin && (
+          <button
+            onClick={() => setIsAdminPortalOpen(true)}
+            className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/80 text-xs font-mono font-bold shadow-[0_0_12px_rgba(245,158,11,0.4)] transition-all cursor-pointer shrink-0"
+            title="Open Master Administrator Dashboard"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">Admin Portal</span>
+          </button>
+        )}
+
         {currentUser ? (
-          <div className="flex items-center gap-1.5 pl-1.5 border-l border-slate-700">
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-xs font-mono">
-              <User className="w-3.5 h-3.5 text-cyan-400" />
-              <div className="text-left hidden xl:block">
-                <div className="text-[11px] font-bold text-white truncate max-w-[120px]">{currentUser.name}</div>
-                <div className="text-[9px] text-slate-400 truncate max-w-[120px]">{currentUser.rollNumber}</div>
+          <div className="flex items-center gap-2">
+            {/* User Account Pill with Symbol & Details */}
+            <div 
+              className="flex items-center gap-2 px-2.5 py-1 rounded-xl bg-slate-900 border border-cyan-500/40 shadow-sm"
+              title={`Logged in as ${currentUser.name} (${currentUser.role})`}
+            >
+              {/* Account Symbol Avatar */}
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white text-xs font-bold shadow-[0_0_8px_rgba(6,182,212,0.6)]">
+                {currentUser.role === 'admin' ? (
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-300" />
+                ) : (
+                  <User className="w-3.5 h-3.5 text-white" />
+                )}
+              </div>
+
+              {/* User Account Details */}
+              <div className="text-left font-mono">
+                <div className="text-[11px] font-bold text-white max-w-[100px] sm:max-w-[130px] truncate leading-tight">
+                  {currentUser.name}
+                </div>
+                <div className="text-[9px] text-cyan-300 flex items-center gap-1">
+                  <span className={`w-1.5 h-1.5 rounded-full ${currentUser.role === 'admin' ? 'bg-amber-400' : 'bg-emerald-400'} animate-pulse`}></span>
+                  <span className="uppercase font-semibold tracking-wider">
+                    {currentUser.role === 'admin' ? 'ADMIN' : 'STUDENT'}
+                  </span>
+                </div>
               </div>
             </div>
+
+            {/* HIGH-VISIBILITY LOGOUT BUTTON WITH ICON AND TEXT */}
             <button
               onClick={logout}
-              className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950 text-slate-400 hover:text-rose-300 border border-slate-800 transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/50 hover:border-rose-400 text-xs font-mono font-bold transition-all shadow-sm hover:shadow-[0_0_12px_rgba(244,63,94,0.4)] cursor-pointer active:scale-95 shrink-0"
               title="Sign Out of Laboratory Account"
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden sm:inline font-bold">Logout</span>
             </button>
           </div>
         ) : (
+          /* Sign In / Account Button when logged out */
           <button
             onClick={() => setIsAuthModalOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-mono font-bold shadow-glow-cyan transition-all cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 text-xs font-mono font-bold shadow-glow-cyan transition-all cursor-pointer active:scale-95 shrink-0"
+            title="Log in or Register Student Account"
           >
-            <User className="w-3.5 h-3.5" />
-            <span>Sign In</span>
+            <User className="w-3.5 h-3.5 text-slate-950" />
+            <span className="tracking-wide">Sign In / Account</span>
           </button>
         )}
       </div>

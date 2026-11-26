@@ -10,8 +10,7 @@ import {
   Play, 
   CheckCircle2, 
   RotateCcw, 
-  RotateCw,
-  Zap, 
+  RotateCw, 
   ShieldCheck, 
   FileText, 
   Search,
@@ -19,6 +18,7 @@ import {
   Sun,
   Moon,
   ArrowRight,
+  ArrowLeft,
   Maximize2,
   Minimize2,
   Check,
@@ -32,10 +32,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Crosshair,
-  Sparkles,
   Trash2,
-  ExternalLink,
-  Download,
   Activity,
   Sliders,
   Compass
@@ -144,8 +141,7 @@ const ComponentVisualBadge: React.FC<{ visualType: string; isInstalled: boolean 
 };
 
 export const HardwareWorkbenchView: React.FC = () => {
-  const { setSelectedReportExpId, setIsRecordModalOpen, captureScreenshot, atmosphereTheme } = useLab();
-  const { currentUser } = useAuth();
+  const { setSelectedReportExpId, setIsRecordModalOpen, captureScreenshot, atmosphereTheme, setActiveView } = useLab();
   const workbenchRef = useRef<HTMLDivElement>(null);
   const orbitControlsRef = useRef<any>(null);
 
@@ -170,7 +166,7 @@ export const HardwareWorkbenchView: React.FC = () => {
   const [tempSelectedExp, setTempSelectedExp] = useState<number>(1);
 
   // Floating Right-Side Dock State: Tab can be 'components' or 'procedure'
-  const [rightPanelTab, setRightPanelTab] = useState<'components' | 'procedure'>('procedure');
+  const [rightPanelTab, setRightPanelTab] = useState<'components' | 'procedure'>('components');
   const [isRightPanelOpen, setIsRightPanelOpen] = useState<boolean>(true);
 
   // Lighting Mode: Night and Day time working space
@@ -189,7 +185,7 @@ export const HardwareWorkbenchView: React.FC = () => {
   // Drag-and-drop workspace hover state
   const [isDropHover, setIsDropHover] = useState<boolean>(false);
 
-  // AutoCAD Camera View Presets
+  // 3D Camera View Presets
   const [activeCameraView, setActiveCameraView] = useState<'iso' | 'top' | 'front' | 'side'>('iso');
 
   // Real-time Red / Green Assembly Feedback
@@ -605,7 +601,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'arms_f450',
           targetComponentName: 'F450 High-Strength Arm Struts (x4)',
-          instruction: 'Pick the "F450 High-Strength Arm Struts (x4)" and mount them onto the lower PCB plate using M3 hex screws.',
+          instruction: 'Pick the "F450 High-Strength Arm Struts (x4)" and drag them onto the lower PCB plate arms outline.',
         },
         {
           stepNo: 3,
@@ -613,7 +609,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'bldc_motors',
           targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
-          instruction: 'Locate "A2212 1000KV Brushless DC Motors (x4)" and bolt them to arm tips with CW and CCW threaded shafts positioned diagonally.',
+          instruction: 'Locate "A2212 1000KV Brushless DC Motors (x4)" and drag them onto the arm tips motor mounts.',
         },
         {
           stepNo: 4,
@@ -636,7 +632,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'fc_kk215',
           targetComponentName: 'KK2.1.5 Multi-Rotor Flight Controller',
-          instruction: 'Fasten the KK2.1.5 board to the upper center frame using anti-vibration rubber bobbins with the forward orientation arrow pointing forward.',
+          instruction: 'Drag the KK2.1.5 board to the upper center frame using anti-vibration rubber bobbins with the forward orientation arrow pointing forward.',
         },
         {
           stepNo: 6,
@@ -1139,7 +1135,7 @@ export const HardwareWorkbenchView: React.FC = () => {
     if (!component) return;
 
     if (nextExpectedStep && nextExpectedStep.targetComponentId === droppedCompId) {
-      // SUCCESS: Correct component
+      // SUCCESS: Correct component dropped into place
       setComponents((prev) =>
         prev.map((c) => (c.id === droppedCompId ? { ...c, installed: true } : c))
       );
@@ -1166,10 +1162,10 @@ export const HardwareWorkbenchView: React.FC = () => {
 
       setValidationAlert({
         type: 'success',
-        title: 'AUTOCAD ASSEMBLY SNAPPED',
+        title: 'COMPONENT ASSEMBLED',
         message: isNowFullyDone
           ? `✓ SUCCESS: "${component.name}" mounted! Assembly is 100% complete and ready to execute.`
-          : `✓ SUCCESS: "${component.name}" snapped into CAD position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
+          : `✓ SUCCESS: "${component.name}" placed in position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
         componentName: component.name,
       });
 
@@ -1299,7 +1295,7 @@ export const HardwareWorkbenchView: React.FC = () => {
     setExplodeRatio(0);
     setShowNewProjectModal(false);
     setHasActiveProject(true);
-    setRightPanelTab('procedure');
+    setRightPanelTab('components');
   };
 
   // Open an Existing Saved Project from Folder
@@ -1332,7 +1328,7 @@ export const HardwareWorkbenchView: React.FC = () => {
     setRedoStack([]);
     setShowFolderBrowserModal(false);
     setHasActiveProject(true);
-    setRightPanelTab('procedure');
+    setRightPanelTab('components');
   };
 
   // Delete a Saved Project
@@ -1344,7 +1340,7 @@ export const HardwareWorkbenchView: React.FC = () => {
     }
   };
 
-  // Switch AutoCAD Camera View Presets
+  // Switch 3D Camera View Presets
   const setCameraPreset = (view: 'iso' | 'top' | 'front' | 'side') => {
     setActiveCameraView(view);
     if (!orbitControlsRef.current) return;
@@ -1394,6 +1390,16 @@ export const HardwareWorkbenchView: React.FC = () => {
     return (
       <div className="fixed inset-0 z-40 flex flex-col items-center justify-between bg-[#02050e] text-slate-100 overflow-hidden font-sans select-none p-6">
         
+        {/* BACK ARROW BUTTON: Returns to Main Dashboard / Experiments Icons Page */}
+        <button
+          onClick={() => setActiveView('dashboard')}
+          className="absolute top-5 left-5 z-20 flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-bold shadow-md transition-all active:scale-95 cursor-pointer hover:border-cyan-400 group"
+          title="Return to Main Experiments Icons Dashboard"
+        >
+          <ArrowLeft className="w-4 h-4 text-cyan-400 group-hover:-translate-x-1 transition-transform" />
+          <span>Back to Dashboard</span>
+        </button>
+
         {/* Background Cyber Starfield & Glowing Grids */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0c1f4e] via-[#050b1d] to-[#01040a] pointer-events-none"></div>
 
@@ -1428,10 +1434,10 @@ export const HardwareWorkbenchView: React.FC = () => {
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/15 text-cyan-300 text-xs sm:text-sm font-mono font-bold border border-cyan-400/50 mb-4 shadow-[0_0_20px_rgba(6,182,212,0.4)] backdrop-blur-md">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
             <Compass className="w-4 h-4 text-cyan-300 animate-spin" style={{ animationDuration: '8s' }} />
-            <span className="tracking-widest uppercase">PRECISION 3D CAD AERONAUTICAL ASSEMBLY</span>
+            <span className="tracking-widest uppercase">PRECISION 3D AERONAUTICAL ASSEMBLY</span>
           </div>
 
-          {/* WELCOME TO AERO-SPACE LABORATORY WORKSPACE (CLEAN AS REQUESTED) */}
+          {/* WELCOME TO AERO-SPACE LABORATORY WORKSPACE */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-tight">
             <span className="block text-cyan-400 font-mono text-base sm:text-xl font-bold tracking-widest mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">
               WELCOME TO
@@ -1442,7 +1448,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           </h1>
 
           <p className="mt-4 text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed font-mono">
-            Virtual 3D component drag-and-drop assembly, circuit connection diagrams, AutoCAD-style object manipulation, and live experiment telemetry execution.
+            Puzzle-style 3D component drag-and-drop assembly, blueprint positioning guides, circuit connection diagrams, and live experiment telemetry execution.
           </p>
         </div>
 
@@ -1459,7 +1465,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           </Canvas>
           <div className="absolute bottom-3 left-4 text-[10px] font-mono text-cyan-400 flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-full border border-cyan-500/30">
             <Crosshair className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
-            <span>Interactive 3D Aerospace CAD Model</span>
+            <span>Interactive 3D Aerospace Model Preview</span>
           </div>
         </div>
 
@@ -1655,7 +1661,7 @@ export const HardwareWorkbenchView: React.FC = () => {
   }
 
   // =========================================================================
-  // VIEW 2: FULL-PAGE CAD 3D WORKSPACE (EXCELLENT ALIGNMENT & 3D COMPONENTS)
+  // VIEW 2: FULL-PAGE 3D WORKSPACE (PUZZLE OUTLINE & PROGRESSIVE 3D ASSEMBLY)
   // =========================================================================
   return (
     <div 
@@ -1664,7 +1670,7 @@ export const HardwareWorkbenchView: React.FC = () => {
         isFullscreenWorkbench ? 'fixed inset-0 z-50 w-screen h-screen' : ''
       }`}
     >
-      {/* 1. TOP AutoCAD CAD TOOLBAR */}
+      {/* 1. TOP TOOLBAR */}
       <div className="bg-[#070c1e]/95 backdrop-blur-md border-b border-cyan-500/30 p-2 sm:px-3 flex flex-wrap items-center justify-between gap-2 shrink-0 z-20 shadow-lg text-xs font-mono">
         
         {/* Left: Project Folder & New/Switch Project */}
@@ -1686,9 +1692,9 @@ export const HardwareWorkbenchView: React.FC = () => {
           </div>
         </div>
 
-        {/* Center 1: AutoCAD 3D Camera Angle Presets */}
+        {/* Center 1: 3D Camera Angle Presets */}
         <div className="hidden md:flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-          <span className="text-[10px] text-slate-400 px-1.5">CAD VIEW:</span>
+          <span className="text-[10px] text-slate-400 px-1.5">VIEW ANGLE:</span>
           {(['iso', 'top', 'front', 'side'] as const).map((view) => (
             <button
               key={view}
@@ -1704,7 +1710,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           ))}
         </div>
 
-        {/* Center 2: UNDO, REDO & RESET WORKBENCH CONTROLS (AS REQUESTED) */}
+        {/* Center 2: UNDO, REDO & RESET WORKBENCH CONTROLS */}
         <div className="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-lg border border-cyan-500/30">
           <button
             onClick={handleUndo}
@@ -1736,7 +1742,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           </button>
         </div>
 
-        {/* CAD Tools: Explode View Slider */}
+        {/* Explode View Slider */}
         <div className="hidden xl:flex items-center gap-2 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 text-[11px]">
           <span className="text-slate-400">EXPLODE:</span>
           <input
@@ -1753,7 +1759,6 @@ export const HardwareWorkbenchView: React.FC = () => {
 
         {/* Right Tools: Day/Night, Screenshot, Fullscreen & Toggle Right Dock */}
         <div className="flex items-center gap-1.5">
-          {/* Day / Night Toggle */}
           <button
             onClick={() => setBenchTimeMode(isDay ? 'night' : 'day')}
             className={`flex items-center gap-1 px-2 py-1 rounded-lg border text-[11px] cursor-pointer ${
@@ -1765,7 +1770,6 @@ export const HardwareWorkbenchView: React.FC = () => {
             <span className="hidden sm:inline">{isDay ? 'Day' : 'Night'}</span>
           </button>
 
-          {/* Screenshot Capture Button */}
           <button
             onClick={handleCaptureWorkspace}
             disabled={isCapturingScreenshot}
@@ -1776,7 +1780,6 @@ export const HardwareWorkbenchView: React.FC = () => {
             <span className="hidden sm:inline">Screenshot</span>
           </button>
 
-          {/* Big Screen Fullscreen Toggle */}
           <button
             onClick={() => setIsFullscreenWorkbench(!isFullscreenWorkbench)}
             className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 text-[11px] cursor-pointer"
@@ -1785,7 +1788,6 @@ export const HardwareWorkbenchView: React.FC = () => {
             {isFullscreenWorkbench ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Toggle Right Dock Button */}
           <button
             onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
             className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition-all ${
@@ -1830,7 +1832,7 @@ export const HardwareWorkbenchView: React.FC = () => {
         </div>
       )}
 
-      {/* 2. FULL-PAGE 3D CAD CANVAS (Visible, fully illuminated, empty first!) */}
+      {/* 2. FULL-PAGE 3D WORKSPACE (Holographic Blueprint Outline + Solid Placed Parts) */}
       <div 
         className="flex-1 relative w-full h-full overflow-hidden"
         onDragOver={(e) => {
@@ -1847,7 +1849,6 @@ export const HardwareWorkbenchView: React.FC = () => {
       >
         <Canvas shadows className="w-full h-full">
           <PerspectiveCamera makeDefault position={[4, 3.5, 5]} fov={45} />
-          {/* Intense, Crystal-Clear Illumination */}
           <ambientLight intensity={isDay ? 1.6 : 0.8} />
           <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.5 : 1.6} castShadow />
           <directionalLight position={[-10, 10, -10]} intensity={isDay ? 1.2 : 0.8} color="#38bdf8" />
@@ -1867,7 +1868,7 @@ export const HardwareWorkbenchView: React.FC = () => {
             />
           </mesh>
 
-          {/* Precision AutoCAD CAD Grid */}
+          {/* Precision Measurement Grid */}
           <Grid
             position={[0, 0.01, 0]}
             args={[12, 8]}
@@ -1880,7 +1881,7 @@ export const HardwareWorkbenchView: React.FC = () => {
             fadeDistance={25}
           />
 
-          {/* 3D Coordinate Triad Axes Indicator in CAD Space */}
+          {/* 3D Coordinate Triad Axes */}
           <group position={[-5, 0.05, -3]}>
             <mesh position={[0.5, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
               <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
@@ -1896,141 +1897,172 @@ export const HardwareWorkbenchView: React.FC = () => {
             </mesh>
           </group>
 
-          {/* VISIBLE 3D HARDWARE COMPONENTS (Empty first, mounts progressively) */}
-          {currentCompletedSteps.length > 0 && (
-            <>
-              {/* EX 1 & 9: Quadcopter-X Assembly */}
-              {(selectedExpNo === 1 || selectedExpNo === 9) && (
-                <group position={[0, 0.1 + explodeRatio * 0.4, 0]}>
-                  <QuadcopterModel
-                    scale={1.2}
-                    spinning={isTestRunning && testThrottle > 0}
-                    throttle={testThrottle / 10}
-                    explodedFactor={explodeRatio}
-                    showWiring={currentCompletedSteps.includes(4)}
-                  />
-                </group>
-              )}
+          {/* PUZZLE ASSEMBLY SYSTEM: HOLOGRAPHIC BLUEPRINT OUTLINE + INDIVIDUAL SOLID 3D PARTS */}
 
-              {/* EX 2: Fixed-Wing Assembly */}
-              {selectedExpNo === 2 && (
-                <group position={[0, 0.4 + explodeRatio * 0.5, 0]}>
-                  <FixedWingModel
-                    scale={0.9}
-                    spinning={isTestRunning && testThrottle > 0}
-                    throttle={testThrottle}
-                    explodedFactor={explodeRatio}
-                  />
-                </group>
-              )}
+          {/* EX 1 & 9: Quadcopter-X Puzzle Assembly */}
+          {(selectedExpNo === 1 || selectedExpNo === 9) && (
+            <group position={[0, 0.1 + explodeRatio * 0.4, 0]}>
+              <QuadcopterModel
+                scale={1.2}
+                spinning={isTestRunning && testThrottle > 0}
+                throttle={testThrottle / 10}
+                explodedFactor={explodeRatio}
+                showFrame={currentCompletedSteps.includes(1)}
+                showArms={currentCompletedSteps.includes(2)}
+                showMotors={currentCompletedSteps.includes(3)}
+                showESCs={currentCompletedSteps.includes(4)}
+                showFC={currentCompletedSteps.includes(5)}
+                showBattery={currentCompletedSteps.includes(6)}
+                showProps={currentCompletedSteps.includes(8)}
+                showGhostBlueprint={true}
+                activePuzzleStep={nextExpectedStep?.stepNo || 1}
+              />
+            </group>
+          )}
 
-              {/* EX 3: Thrust Stand Rig */}
-              {selectedExpNo === 3 && (
-                <group position={[0, 0, 0]}>
-                  <mesh position={[0, 0.25, 0]}>
-                    <boxGeometry args={[1.8, 0.5, 3.2]} />
-                    <meshStandardMaterial color={isDay ? '#64748b' : '#1e293b'} metalness={0.7} roughness={0.3} />
-                  </mesh>
-                  {currentCompletedSteps.includes(2) && (
-                    <group position={[0, 0.65, -0.5]}>
-                      <BLDCMotorModel scale={1.2} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} />
-                      {currentCompletedSteps.includes(5) && (
-                        <group position={[0, 0.45, 0]}>
-                          <PropellerModel scale={1.1} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} blades={2} />
-                        </group>
-                      )}
-                    </group>
-                  )}
-                  {currentCompletedSteps.includes(3) && (
-                    <group position={[-0.5, 0.55, 0.6]}>
-                      <ESCModel scale={0.8} ampRating={30} />
-                    </group>
-                  )}
-                  {currentCompletedSteps.includes(4) && (
-                    <group position={[0.4, 0.55, 0.6]}>
-                      <LiPoBatteryModel scale={0.75} cells={3} />
-                    </group>
-                  )}
-                </group>
+          {/* EX 2: Fixed-Wing Assembly */}
+          {selectedExpNo === 2 && (
+            <group position={[0, 0.4 + explodeRatio * 0.5, 0]}>
+              {currentCompletedSteps.length > 0 ? (
+                <FixedWingModel
+                  scale={0.9}
+                  spinning={isTestRunning && testThrottle > 0}
+                  throttle={testThrottle}
+                  explodedFactor={explodeRatio}
+                />
+              ) : (
+                <mesh>
+                  <boxGeometry args={[0.3, 0.3, 3.2]} />
+                  <meshStandardMaterial color="#00f0ff" wireframe emissive="#00f0ff" emissiveIntensity={0.6} />
+                </mesh>
               )}
+            </group>
+          )}
 
-              {/* EX 4: Servo Protractor */}
-              {selectedExpNo === 4 && (
-                <group position={[0, 0.1, 0]}>
-                  <group position={[0, 0.3, 0]}>
-                    <ServoMotorModel scale={1.8} angle={activeServoAngle} />
-                  </group>
-                  <mesh position={[0, 0.05, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
-                    <ringGeometry args={[1.2, 1.6, 32, 1, 0, Math.PI]} />
-                    <meshStandardMaterial color="#f59e0b" metalness={0.5} roughness={0.5} />
-                  </mesh>
-                </group>
+          {/* EX 3: Thrust Stand Rig */}
+          {selectedExpNo === 3 && (
+            <group position={[0, 0, 0]}>
+              {currentCompletedSteps.includes(1) ? (
+                <mesh position={[0, 0.25, 0]}>
+                  <boxGeometry args={[1.8, 0.5, 3.2]} />
+                  <meshStandardMaterial color={isDay ? '#64748b' : '#1e293b'} metalness={0.7} roughness={0.3} />
+                </mesh>
+              ) : (
+                <mesh position={[0, 0.25, 0]}>
+                  <boxGeometry args={[1.8, 0.5, 3.2]} />
+                  <meshStandardMaterial color="#f59e0b" wireframe emissive="#f59e0b" emissiveIntensity={0.8} />
+                </mesh>
               )}
-
-              {/* EX 5: LiPo & IMAX B6 */}
-              {selectedExpNo === 5 && (
-                <group position={[0, 0.1, 0]}>
-                  <group position={[-1.0, 0.2, 0]}>
-                    <LiPoBatteryModel scale={1.3} cells={3} />
-                  </group>
-                  {currentCompletedSteps.includes(3) && (
-                    <group position={[1.0, 0.2, 0]}>
-                      <mesh>
-                        <boxGeometry args={[1.8, 0.4, 1.3]} />
-                        <meshStandardMaterial color="#2563eb" metalness={0.8} roughness={0.3} />
-                      </mesh>
+              {currentCompletedSteps.includes(2) && (
+                <group position={[0, 0.65, -0.5]}>
+                  <BLDCMotorModel scale={1.2} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} />
+                  {currentCompletedSteps.includes(5) && (
+                    <group position={[0, 0.45, 0]}>
+                      <PropellerModel scale={1.1} spinning={isTestRunning && testThrottle > 0} rpm={testRPM} blades={2} />
                     </group>
                   )}
                 </group>
               )}
-
-              {/* EX 6: RC Transmitter & Receiver */}
-              {selectedExpNo === 6 && (
-                <group position={[0, 0.2, 0]}>
-                  <group position={[-1.2, 0.8, 0]} rotation={[0.4, 0, 0]}>
-                    <mesh>
-                      <boxGeometry args={[1.6, 2.0, 0.6]} />
-                      <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
-                    </mesh>
-                  </group>
-                  <group position={[1.2, 0.2, 0]}>
-                    <mesh>
-                      <boxGeometry args={[0.9, 0.3, 0.6]} />
-                      <meshStandardMaterial color="#0f172a" />
-                    </mesh>
-                  </group>
+              {currentCompletedSteps.includes(3) && (
+                <group position={[-0.5, 0.55, 0.6]}>
+                  <ESCModel scale={0.8} ampRating={30} />
                 </group>
               )}
-
-              {/* EX 7: Prop Balancer */}
-              {selectedExpNo === 7 && (
-                <group position={[0, 0, 0]}>
-                  <BalanceStandModel scale={1.2} />
-                  {currentCompletedSteps.includes(2) && (
-                    <group position={[0, 1.45, 0]}>
-                      <PropellerModel scale={1.3} spinning={false} rpm={0} blades={2} />
-                    </group>
-                  )}
+              {currentCompletedSteps.includes(4) && (
+                <group position={[0.4, 0.55, 0.6]}>
+                  <LiPoBatteryModel scale={0.75} cells={3} />
                 </group>
               )}
+            </group>
+          )}
 
-              {/* EX 8: Wind Tunnel Airfoil */}
-              {selectedExpNo === 8 && (
-                <group position={[0, 0.4, 0]}>
-                  <mesh rotation={[0, 0, 0.15]}>
-                    <boxGeometry args={[0.2, 1.2, 3.0]} />
-                    <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
+          {/* EX 4: Servo Protractor */}
+          {selectedExpNo === 4 && (
+            <group position={[0, 0.1, 0]}>
+              {currentCompletedSteps.includes(2) && (
+                <group position={[0, 0.3, 0]}>
+                  <ServoMotorModel scale={1.8} angle={activeServoAngle} />
+                </group>
+              )}
+              {currentCompletedSteps.includes(3) && (
+                <mesh position={[0, 0.05, 0.6]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <ringGeometry args={[1.2, 1.6, 32, 1, 0, Math.PI]} />
+                  <meshStandardMaterial color="#f59e0b" metalness={0.5} roughness={0.5} />
+                </mesh>
+              )}
+            </group>
+          )}
+
+          {/* EX 5: LiPo & IMAX B6 */}
+          {selectedExpNo === 5 && (
+            <group position={[0, 0.1, 0]}>
+              {currentCompletedSteps.includes(1) && (
+                <group position={[-1.0, 0.2, 0]}>
+                  <LiPoBatteryModel scale={1.3} cells={3} />
+                </group>
+              )}
+              {currentCompletedSteps.includes(3) && (
+                <group position={[1.0, 0.2, 0]}>
+                  <mesh>
+                    <boxGeometry args={[1.8, 0.4, 1.3]} />
+                    <meshStandardMaterial color="#2563eb" metalness={0.8} roughness={0.3} />
                   </mesh>
                 </group>
               )}
+            </group>
+          )}
 
-              {/* EX 10: KK2.1.5 Board */}
-              {selectedExpNo === 10 && (
-                <group position={[0, 0.2 + explodeRatio * 0.3, 0]}>
-                  <KK215BoardModel scale={1.5} />
+          {/* EX 6: RC Transmitter & Receiver */}
+          {selectedExpNo === 6 && (
+            <group position={[0, 0.2, 0]}>
+              {currentCompletedSteps.includes(4) && (
+                <group position={[-1.2, 0.8, 0]} rotation={[0.4, 0, 0]}>
+                  <mesh>
+                    <boxGeometry args={[1.6, 2.0, 0.6]} />
+                    <meshStandardMaterial color="#1e293b" metalness={0.6} roughness={0.4} />
+                  </mesh>
                 </group>
               )}
-            </>
+              {currentCompletedSteps.includes(1) && (
+                <group position={[1.2, 0.2, 0]}>
+                  <mesh>
+                    <boxGeometry args={[0.9, 0.3, 0.6]} />
+                    <meshStandardMaterial color="#0f172a" />
+                  </mesh>
+                </group>
+              )}
+            </group>
+          )}
+
+          {/* EX 7: Prop Balancer */}
+          {selectedExpNo === 7 && (
+            <group position={[0, 0, 0]}>
+              {currentCompletedSteps.includes(1) && <BalanceStandModel scale={1.2} />}
+              {currentCompletedSteps.includes(2) && (
+                <group position={[0, 1.45, 0]}>
+                  <PropellerModel scale={1.3} spinning={false} rpm={0} blades={2} />
+                </group>
+              )}
+            </group>
+          )}
+
+          {/* EX 8: Wind Tunnel Airfoil */}
+          {selectedExpNo === 8 && (
+            <group position={[0, 0.4, 0]}>
+              {currentCompletedSteps.includes(1) && (
+                <mesh rotation={[0, 0, 0.15]}>
+                  <boxGeometry args={[0.2, 1.2, 3.0]} />
+                  <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
+                </mesh>
+              )}
+            </group>
+          )}
+
+          {/* EX 10: KK2.1.5 Board */}
+          {selectedExpNo === 10 && (
+            <group position={[0, 0.2 + explodeRatio * 0.3, 0]}>
+              {currentCompletedSteps.includes(1) && <KK215BoardModel scale={1.5} />}
+            </group>
           )}
 
           <OrbitControls ref={orbitControlsRef} enableDamping dampingFactor={0.05} />
@@ -2042,10 +2074,10 @@ export const HardwareWorkbenchView: React.FC = () => {
             <div className="p-4 rounded-2xl bg-[#091024]/90 border border-cyan-500/40 max-w-sm shadow-xl backdrop-blur-md">
               <Crosshair className="w-8 h-8 text-cyan-400 mx-auto mb-2 animate-pulse" />
               <h3 className="text-xs font-bold font-mono text-white mb-1">
-                CAD WORKSPACE READY (EMPTY)
+                PUZZLE BLUEPRINT READY
               </h3>
               <p className="text-[11px] text-slate-300 font-mono leading-relaxed">
-                Step 1: Drag & drop <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the right dock onto the table.
+                Step 1: Drag <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the components tray and drop it onto the glowing outline!
               </p>
             </div>
           </div>
@@ -2056,7 +2088,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           <div className="absolute inset-0 bg-cyan-500/20 backdrop-blur-xs flex flex-col items-center justify-center pointer-events-none z-30 animate-pulse border-4 border-dashed border-cyan-400">
             <Move className="w-12 h-12 text-cyan-300 mb-2 animate-bounce" />
             <span className="text-base font-black text-cyan-200 font-mono tracking-widest uppercase">
-              DROP COMPONENT HERE TO ASSEMBLE
+              DROP PIECE HERE TO ASSEMBLE
             </span>
           </div>
         )}
@@ -2065,21 +2097,9 @@ export const HardwareWorkbenchView: React.FC = () => {
         {isRightPanelOpen && (
           <div className="absolute top-3 right-3 bottom-3 w-80 sm:w-96 md:w-[420px] bg-[#070b18]/95 backdrop-blur-md rounded-2xl border-2 border-cyan-500/40 shadow-[0_0_40px_rgba(6,182,212,0.3)] flex flex-col z-30 overflow-hidden font-mono text-xs">
             
-            {/* Dock Header Tabs: [ 📋 PROCEDURE & CIRCUITS ] vs [ 📦 3D COMPONENTS ] */}
+            {/* Dock Header Tabs: [ 📦 3D COMPONENTS ] vs [ 📋 PROCEDURE & CIRCUITS ] */}
             <div className="p-2 border-b border-cyan-500/30 bg-[#091126] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-1">
-                <button
-                  onClick={() => setRightPanelTab('procedure')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    rightPanelTab === 'procedure'
-                      ? 'bg-amber-400 text-slate-950 shadow-sm'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>PROCEDURE</span>
-                </button>
-
                 <button
                   onClick={() => setRightPanelTab('components')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
@@ -2090,6 +2110,18 @@ export const HardwareWorkbenchView: React.FC = () => {
                 >
                   <Box className="w-3.5 h-3.5" />
                   <span>3D COMPONENTS</span>
+                </button>
+
+                <button
+                  onClick={() => setRightPanelTab('procedure')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                    rightPanelTab === 'procedure'
+                      ? 'bg-amber-400 text-slate-950 shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>PROCEDURE</span>
                 </button>
               </div>
 
@@ -2102,7 +2134,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               </button>
             </div>
 
-            {/* TAB CONTENT A: 3D COMPONENTS SECTION */}
+            {/* TAB CONTENT A: 3D COMPONENTS SECTION (DRAG & DROP SOURCE) */}
             {rightPanelTab === 'components' && (
               <div className="flex-1 flex flex-col overflow-hidden">
                 <div className="p-3 border-b border-slate-800 flex flex-col gap-2 bg-[#050914] shrink-0">
@@ -2172,14 +2204,10 @@ export const HardwareWorkbenchView: React.FC = () => {
                               <Check className="w-3 h-3" /> Placed
                             </span>
                           ) : (
-                            <button
-                              onClick={() => handleDropComponent(item.id)}
-                              className="px-2.5 py-0.5 rounded bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[9px] shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
-                              title="Click or drag to place onto workspace"
-                            >
+                            <span className="text-[9px] text-cyan-400 font-bold flex items-center gap-1 bg-cyan-950/50 px-2 py-0.5 rounded border border-cyan-500/30">
                               <Move className="w-2.5 h-2.5" />
-                              <span>Place Part</span>
-                            </button>
+                              <span>Drag to Blueprint</span>
+                            </span>
                           )}
                         </div>
                       </div>
@@ -2194,7 +2222,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               </div>
             )}
 
-            {/* TAB CONTENT B: PROCEDURE & CIRCUIT CONNECTION DIAGRAMS */}
+            {/* TAB CONTENT B: PROCEDURE & CIRCUIT CONNECTION DIAGRAMS (NO "PLACE PART" BUTTON AS REQUESTED) */}
             {rightPanelTab === 'procedure' && (
               <div className="flex-1 flex flex-col overflow-y-auto p-3 space-y-3 custom-scrollbar">
                 
@@ -2250,11 +2278,11 @@ export const HardwareWorkbenchView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* STEP-BY-STEP PROCEDURE LIST WITH CIRCUIT DIAGRAMS */}
+                {/* STEP-BY-STEP PROCEDURE LIST (REMOVED PLACE PART BUTTON) */}
                 <div className="space-y-3">
                   <h4 className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                     <Layers className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>STEP-BY-STEP PROCEDURE</span>
+                    <span>STEP-BY-STEP PROCEDURE (DRAG FROM 3D TRAY)</span>
                   </h4>
 
                   {activeExpSteps.map((step) => {
@@ -2288,7 +2316,7 @@ export const HardwareWorkbenchView: React.FC = () => {
 
                           {isCurrent && (
                             <span className="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40">
-                              NEXT &gt;&gt;&gt;
+                              ACTIVE TARGET
                             </span>
                           )}
                         </div>
@@ -2333,33 +2361,21 @@ export const HardwareWorkbenchView: React.FC = () => {
                           </div>
                         )}
 
-                        {/* Action CTA */}
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[9px] text-slate-400 truncate max-w-[180px]">
-                            Target: {step.targetComponentName}
+                        {/* Target Component Identifier */}
+                        <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[9px]">
+                          <span className="text-slate-400">
+                            Required: <strong className="text-cyan-300">{step.targetComponentName}</strong>
                           </span>
-
-                          <button
-                            onClick={() => handleDropComponent(step.targetComponentId)}
-                            disabled={isStepDone}
-                            className={`px-2.5 py-0.5 rounded-lg text-[9px] font-bold font-mono transition-transform active:scale-95 flex items-center gap-1 cursor-pointer ${
-                              isStepDone
-                                ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/30 cursor-default'
-                                : 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-glow-cyan'
-                            }`}
-                          >
-                            {isStepDone ? (
-                              <>
-                                <CheckCheck className="w-3 h-3 text-emerald-400" />
-                                <span>Mounted</span>
-                              </>
-                            ) : (
-                              <>
-                                <Move className="w-2.5 h-2.5" />
-                                <span>Place Part</span>
-                              </>
-                            )}
-                          </button>
+                          {isStepDone ? (
+                            <span className="text-emerald-400 font-bold flex items-center gap-1">
+                              <CheckCheck className="w-3.5 h-3.5" />
+                              <span>Mounted on Blueprint</span>
+                            </span>
+                          ) : (
+                            <span className="text-amber-400 font-bold">
+                              Drag & Drop onto Blueprint
+                            </span>
+                          )}
                         </div>
                       </div>
                     );

@@ -600,20 +600,20 @@ export const HardwareWorkbenchView: React.FC = () => {
     }
   };
 
-  // Master Guided Execution Protocols for Experiments 1 through 10
+  // Master Guided Execution Protocols for Experiments 1 through 10 (Strictly Aligned with Syllabus)
   const experimentGuides: Record<number, ExperimentGuide> = useMemo(() => ({
     1: {
       expNo: 1,
-      title: 'UAV Component Identification & Structural Architecture',
-      aim: 'Identify physical UAV airframe structures, propulsion motors, ESCs, flight controller, and power distribution subsystems.',
+      title: 'Payload and Weight Estimation.',
+      aim: 'To determine the empty airframe weight, structural fraction, useful mission payload capacity, All-Up Weight (AUW/MTOW), and required thrust-to-weight ratio (TWR) of a multirotor UAV through analytical and empirical component load breakdown.',
       steps: [
         {
           stepNo: 1,
-          title: 'Select & Place F450 Carbon-Fiber Center Frame',
+          title: 'Select & Weigh F450 Carbon-Fiber Center Frame Plates',
           actionType: 'pick',
           targetComponentId: 'frame_f450',
           targetComponentName: 'F450 Quad-X Carbon Frame Plates',
-          instruction: 'From the components tray on the right, locate and drag the "F450 Quad-X Carbon Frame Plates" onto the center of the ESD workbench.',
+          instruction: 'From the components tray on the right, locate and drag the "F450 Quad-X Carbon Frame Plates" onto the workbench center to establish the empty airframe tare mass (180g).',
         },
         {
           stepNo: 2,
@@ -621,7 +621,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'arms_f450',
           targetComponentName: 'F450 High-Strength Arm Struts (x4)',
-          instruction: 'Pick the "F450 High-Strength Arm Struts (x4)" and drag them onto the lower PCB plate arms outline.',
+          instruction: 'Pick the "F450 High-Strength Arm Struts (x4)" and drag them onto the frame outline to record the structural arm mass (210g).',
         },
         {
           stepNo: 3,
@@ -629,15 +629,15 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'bldc_motors',
           targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
-          instruction: 'Locate "A2212 1000KV Brushless DC Motors (x4)" and drag them onto the arm tips motor mounts.',
+          instruction: 'Locate "A2212 1000KV Brushless DC Motors (x4)" and mount them onto the arm tips to calculate propulsion train mass (240g).',
         },
         {
           stepNo: 4,
-          title: 'Route ESC 3-Phase Bullet Leads & Solder to PDB',
+          title: 'Route ESC 3-Phase Bullet Leads & Connect PDB',
           actionType: 'wire',
           targetComponentId: 'esc_30a',
           targetComponentName: 'SimonK 30A High-Speed ESCs (x4)',
-          instruction: 'Connect the 3-phase bullet connectors of the SimonK 30A ESCs to the BLDC motor wires, then solder DC leads to the integrated PDB pads.',
+          instruction: 'Connect the 3-phase bullet connectors of the SimonK 30A ESCs to the BLDC motor wires and solder DC power leads (112g).',
           connectionDiagram: {
             from: '30A ESC 3-Phase Bullet Jacks (Blue/Yellow/Red)',
             to: 'BLDC Motor Stator Leads (U, V, W phases)',
@@ -648,19 +648,19 @@ export const HardwareWorkbenchView: React.FC = () => {
         },
         {
           stepNo: 5,
-          title: 'Mount KK2.1.5 Flight Controller on Vibration Dampers',
+          title: 'Mount KK2.1.5 Flight Controller & Avionics',
           actionType: 'mount',
           targetComponentId: 'fc_kk215',
           targetComponentName: 'KK2.1.5 Multi-Rotor Flight Controller',
-          instruction: 'Drag the KK2.1.5 board to the upper center frame using anti-vibration rubber bobbins with the forward orientation arrow pointing forward.',
+          instruction: 'Mount the KK2.1.5 board to the upper deck on rubber dampeners to log avionics subsystem mass (38g).',
         },
         {
           stepNo: 6,
-          title: 'Secure Turnigy 3S 2200mAh LiPo & Connect XT60',
+          title: 'Secure Turnigy 3S 2200mAh LiPo Battery Pack',
           actionType: 'wire',
           targetComponentId: 'lipo_3s',
           targetComponentName: 'Turnigy 3S 2200mAh 25C LiPo Battery',
-          instruction: 'Mount the LiPo battery under the belly tray with velcro strap and plug the main XT60 connector into the PDB harness.',
+          instruction: 'Mount the 3S LiPo battery under the belly tray with velcro strap and connect XT60 to determine battery mass fraction (185g).',
           connectionDiagram: {
             from: '3S LiPo Battery XT60 Female Plug (11.1V - 12.6V)',
             to: 'Frame PDB XT60 Male Harness',
@@ -671,11 +671,11 @@ export const HardwareWorkbenchView: React.FC = () => {
         },
         {
           stepNo: 7,
-          title: 'Connect FS-iA6B 2.4GHz Receiver Channels',
+          title: 'Connect FS-iA6B 2.4GHz Telemetry Receiver',
           actionType: 'wire',
           targetComponentId: 'rc_receiver_ia6b',
           targetComponentName: 'FS-iA6B 6-Channel 2.4GHz Receiver',
-          instruction: 'Plug 3-pin servo leads from Receiver Channels 1-4 (Aileron, Elevator, Throttle, Rudder) to the input header of the KK2.1.5 board.',
+          instruction: 'Connect 3-pin receiver signal harness to KK2.1.5 input header to account for RF link mass (16g).',
           connectionDiagram: {
             from: 'FS-iA6B Ch1-Ch4 3-Pin Headers (GND, VCC, Signal)',
             to: 'KK2.1.5 Input Header (Pins 1 to 4: Ail, Ele, Thr, Rud)',
@@ -686,18 +686,18 @@ export const HardwareWorkbenchView: React.FC = () => {
         },
         {
           stepNo: 8,
-          title: 'Install 1045 Propellers (CW & CCW Pair)',
+          title: 'Install 1045 Carbon Propellers & Calculate TWR',
           actionType: 'mount',
           targetComponentId: 'props_1045',
           targetComponentName: '1045 Carbon-Reinforced Propellers (x4)',
-          instruction: 'Lock 1045 props onto motor shafts using nyloc prop nuts: Motor 1/3 (CCW pusher) & Motor 2/4 (CW tractor). Assembly complete!',
+          instruction: 'Fasten 1045 CW/CCW props (52g). Sum all masses to find MTOW and verify Thrust-to-Weight Ratio exceeds 2.0:1 for safe payload lifting.',
         }
       ]
     },
     2: {
       expNo: 2,
-      title: 'Fixed-Wing Aircraft Structural Assembly & Control Linkages',
-      aim: 'Assemble EPO trainer airframe, insert high-strength carbon wing spar, install aileron/elevator micro-servos and mechanical pushrods.',
+      title: 'Fixed Wing UAV Frame and Avionics Components Assembling.',
+      aim: 'To study the mechanical and electrical assembly sequence of a fixed-wing UAV, including airframe integration, wing spar structural assembly, control surface linkages, and avionics bus layout.',
       steps: [
         {
           stepNo: 1,
@@ -705,7 +705,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'pick',
           targetComponentId: 'fixed_wing_airframe',
           targetComponentName: 'Trainer Fixed-Wing EPO Airframe',
-          instruction: 'Drag the EPO Trainer Fuselage onto the ESD workbench.',
+          instruction: 'Drag the aerodynamic EPO trainer fuselage onto the assembly jig to establish reference alignment datums.',
         },
         {
           stepNo: 2,
@@ -713,7 +713,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'wing_spar_carbon',
           targetComponentName: 'High-Modulus Carbon Fiber Wing Spar Tube',
-          instruction: 'Slide the 10mm OD pultruded carbon spar through the fuselage wing bay to carry the bending moment of the wings.',
+          instruction: 'Slide the 10mm OD pultruded carbon spar through the fuselage wing bay to carry the aerodynamic bending moments.',
         },
         {
           stepNo: 3,
@@ -721,7 +721,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'servos_9g',
           targetComponentName: 'SG90 9g Micro Servos & Linkages (x4)',
-          instruction: 'Insert 4x SG90 servos into wing cutouts and vertical stabilizer for Aileron, Elevator, and Rudder control.',
+          instruction: 'Insert 4x SG90 micro servos into wing pockets and empennage for Aileron, Elevator, and Rudder actuation.',
         },
         {
           stepNo: 4,
@@ -729,7 +729,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'wire',
           targetComponentId: 'pushrod_linkage',
           targetComponentName: 'Piano Wire Pushrods & Brass Clevises',
-          instruction: 'Connect 1.2mm steel pushrods from servo arms to aerodynamic surface horns with zero mechanical slop.',
+          instruction: 'Connect 1.2mm steel pushrods from servo horns to control surfaces with zero mechanical play.',
           connectionDiagram: {
             from: 'Servo Output Arm Spline',
             to: 'Aileron/Elevator Control Surface Nylon Horn',
@@ -740,18 +740,18 @@ export const HardwareWorkbenchView: React.FC = () => {
         },
         {
           stepNo: 5,
-          title: 'Mount Tractor BLDC Motor & 1045 Propeller',
+          title: 'Mount Tractor BLDC Motor & Propeller',
           actionType: 'mount',
           targetComponentId: 'bldc_motors',
           targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
-          instruction: 'Bolt the A2212 motor to the nose firewall and tighten the 1045 propeller for propulsion thrust.',
+          instruction: 'Bolt the brushless motor to the firewall nose bulkhead with down/right thrust offset and tighten propeller.',
         }
       ]
     },
     3: {
       expNo: 3,
-      title: 'BLDC Motor & Propeller Thrust Calibration Bench',
-      aim: 'Calibrate static thrust (grams), rotational speed (RPM), and electrical power efficiency (g/W) using digital strain-gauge rig.',
+      title: 'Calibration and Estimation of Motor\'s Thrust with Various ESCs and Propellers',
+      aim: 'To evaluate and calibrate brushless motor static thrust generation, optical RPM, current draw, and power efficiency across variable ESC throttle signals and propeller dimensions.',
       steps: [
         {
           stepNo: 1,
@@ -759,7 +759,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'pick',
           targetComponentId: 'thrust_rig',
           targetComponentName: 'Digital Load-Cell Thrust Stand Rig',
-          instruction: 'Position the 5kg dual-rail thrust measurement stand on the ESD workbench.',
+          instruction: 'Position the dual-rail digital thrust measurement stand on the ESD workbench and tare the strain gauge.',
         },
         {
           stepNo: 2,
@@ -767,7 +767,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'bldc_motors',
           targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
-          instruction: 'Mount the brushless outrunner motor rigidly onto the thrust stand carriage facing forward.',
+          instruction: 'Mount the brushless outrunner motor rigidly onto the thrust stand carriage facing the load cell.',
         },
         {
           stepNo: 3,
@@ -804,8 +804,8 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
     4: {
       expNo: 4,
-      title: 'Control Surface Deflection & Servo Angular Testing',
-      aim: 'Measure control surface angular deflection (degrees) versus PWM pulse width (microseconds) using servo tester and acrylic protractor.',
+      title: 'UAV Control Testing & Trimming Procedure using Transmitter and Servo.',
+      aim: 'To verify primary control surface deflections (Ailerons, Elevator, Rudder) against transmitter stick PWM pulse widths and calibrate digital sub-trims to achieve zero aerodynamic offset.',
       steps: [
         {
           stepNo: 1,
@@ -836,7 +836,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'protractor_dial',
           targetComponentName: '180° Precision Angular Deflection Protractor',
-          instruction: 'Align the protractor dial with the servo output shaft centerline to measure angular displacement.',
+          instruction: 'Align the protractor dial with the servo output shaft centerline to measure angular displacement in degrees.',
         },
         {
           stepNo: 4,
@@ -844,14 +844,14 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'mount',
           targetComponentId: 'pushrod_linkage',
           targetComponentName: 'Piano Wire Pushrods & Brass Clevises',
-          instruction: 'Attach pointer needle to servo arm and verify 90° center alignment at 1500μs neutral pulse.',
+          instruction: 'Attach pointer needle to servo arm and verify 0° neutral alignment at exactly 1500μs pulse width.',
         }
       ]
     },
     5: {
       expNo: 5,
-      title: 'LiPo Battery Chemistry, Discharge Rates & Smart Balancing',
-      aim: 'Analyze per-cell voltage, IR internal resistance, and balance charging using IMAX B6 microprocessor charger.',
+      title: 'Lithium Polymer Battery Testing, Balancing and Maintenance.',
+      aim: 'To test Lithium-Polymer (LiPo) electrochemical pack health, measure individual cell terminal voltages and internal resistance (IR), demonstrate microprocessor balance charging, and maintain safe storage voltage.',
       steps: [
         {
           stepNo: 1,
@@ -867,7 +867,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'wire',
           targetComponentId: 'lipo_checker',
           targetComponentName: 'Digital 1S-8S Battery Cell Voltage Checker & Buzzer',
-          instruction: 'Plug JST-XH 4-pin balance connector into the cell checker to verify Cell 1, 2, and 3 voltage matching.',
+          instruction: 'Plug JST-XH 4-pin balance connector into the cell checker to verify Cell 1, 2, and 3 voltage matching (ΔV < 15mV).',
           connectionDiagram: {
             from: 'LiPo JST-XH 4-Pin Balance Lead',
             to: '1S-8S Digital Checker Balance Port (Pin 1 to Pin 4)',
@@ -882,14 +882,14 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'wire',
           targetComponentId: 'lipo_charger_b6',
           targetComponentName: 'IMAX B6 80W Microprocessor Balance Charger',
-          instruction: 'Connect XT60 main power banana leads and the JST-XH balance lead to the IMAX B6 charger for CC/CV balance charging.',
+          instruction: 'Connect XT60 main power banana leads and the JST-XH balance lead to the IMAX B6 charger for CC/CV balance charging and storage maintenance.',
         }
       ]
     },
     6: {
       expNo: 6,
-      title: 'RC Transmitter & Receiver Calibration & Failsafe Binding',
-      aim: 'Bind 2.4GHz FlySky FS-i6 transmitter to FS-iA6B receiver, calibrate gimbals, and configure throttle cut failsafe.',
+      title: 'RC Transmitter Resetting, Calibration and Frequency Binding.',
+      aim: 'To perform complete transmitter memory reset, calibrate analog stick potentiometer endpoints, execute the 2.4GHz FHSS frequency binding sequence with the receiver, and configure failsafe motor cutoff.',
       steps: [
         {
           stepNo: 1,
@@ -934,8 +934,8 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
     7: {
       expNo: 7,
-      title: 'Propeller Static & Dynamic Balancing Protocol',
-      aim: 'Identify blade mass imbalance and blade tracking errors using magnetic suspension balancer, applying balancing tape to eliminate vibration.',
+      title: 'Propeller Balancing Procedure.',
+      aim: 'To balance two-blade and three-blade UAV propellers statically and dynamically using a magnetic levitation suspension balancer, mitigating airframe vibrations.',
       steps: [
         {
           stepNo: 1,
@@ -965,46 +965,47 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
     8: {
       expNo: 8,
-      title: 'Subsonic Wind Tunnel Aerodynamic Lift & Drag Testing',
-      aim: 'Measure pressure distribution along Clark-Y / NACA airfoil surface and calculate lift coefficient (CL) and drag coefficient (CD) at various AoA.',
+      title: 'Fixed Wing UAV Centre of Gravity Calculation and Balancing.',
+      aim: 'To calculate the longitudinal center of gravity (CG) of a fixed-wing UAV relative to the wing leading edge datum, correlate it with the Mean Aerodynamic Chord (MAC), and balance the aircraft by shifting component locations to achieve a stable static margin.',
       steps: [
         {
           stepNo: 1,
-          title: 'Mount NACA 0012 / Clark-Y Airfoil in Test Section',
+          title: 'Place Fixed-Wing Airframe on Longitudinal Balance Jig',
           actionType: 'pick',
-          targetComponentId: 'airfoil_naca',
-          targetComponentName: 'Subsonic Wing Airfoil Section (NACA 0012 / Clark-Y)',
-          instruction: 'Mount the airfoil model between the optical glass walls of the wind tunnel test section on the angle-of-attack rotary mount.',
+          targetComponentId: 'fixed_wing_airframe',
+          targetComponentName: 'Trainer Fixed-Wing EPO Airframe',
+          instruction: 'Position the fixed-wing airframe on the longitudinal balance jig with the wing leading edge positioned at datum station X=0.',
         },
         {
           stepNo: 2,
-          title: 'Install Pitot-Static Tube in Free-Stream Flow',
+          title: 'Insert Wing Spar Tube to Establish Mean Aerodynamic Chord',
           actionType: 'mount',
-          targetComponentId: 'pitot_tube',
-          targetComponentName: 'Pitot-Static Tube Differential Airspeed Probe',
-          instruction: 'Align the pitot-static tube upstream of the airfoil to measure free-stream dynamic pressure (q = 1/2 * rho * V^2).',
+          targetComponentId: 'wing_spar_carbon',
+          targetComponentName: 'High-Modulus Carbon Fiber Wing Spar Tube',
+          instruction: 'Insert the carbon-fiber wing spar tube through the fuselage wing roots to locate the 25% MAC aerodynamic center line (MAC = 180mm).',
         },
         {
           stepNo: 3,
-          title: 'Connect Pressure Taps to Multi-Tube Water Manometer',
+          title: 'Mount Brushless Motor on Firewall Nose Bulkhead',
+          actionType: 'mount',
+          targetComponentId: 'bldc_motors',
+          targetComponentName: 'A2212 1000KV Brushless DC Motors (x4)',
+          instruction: 'Fasten the motor assembly to the forward firewall bulkhead (X = -85mm) to generate the necessary nose counterweight moment.',
+        },
+        {
+          stepNo: 4,
+          title: 'Slide 3S LiPo Battery along Longitudinal Rail to Balance CG',
           actionType: 'wire',
-          targetComponentId: 'manometer_water',
-          targetComponentName: 'Inclined U-Tube Water Differential Manometer',
-          instruction: 'Run flexible silicone tubing from upper and lower airfoil surface pressure orifices to the inclined water manometer board.',
-          connectionDiagram: {
-            from: 'Airfoil Surface Pressure Orifices (P1 to P12)',
-            to: 'Inclined Water Manometer Tube Array (H2O rho = 1000 kg/m3)',
-            pinout: 'Port 1-6: Upper Surface Suction Side, Port 7-12: Lower Surface Pressure Side',
-            wireColor: 'Transparent 2mm Silicone Pressure Tubing',
-            schematicText: '[Airfoil Upper Surface Taps] ──► [Manometer Limbs (mmH2O Deflection)] ──► [Delta-P = rho * g * delta-h] ──► [Cp Distribution]'
-          }
+          targetComponentId: 'lipo_3s',
+          targetComponentName: 'Turnigy 3S 2200mAh 25C LiPo Battery',
+          instruction: 'Position the 3S LiPo battery along the internal fuselage tray until the aircraft balances horizontally at X_CG = 68.4mm (30.5% MAC, Static Margin > 10%).',
         }
       ]
     },
     9: {
       expNo: 9,
-      title: 'Complete Quadcopter Systems Integration & Pre-Flight Check',
-      aim: 'Full hardware integration of F450 frame, BLDC motors, ESCs, KK2.1.5 board, 3S LiPo, and FS-iA6B receiver into a flight-ready UAV.',
+      title: 'Drone Base and Avionic components assembling in Quadcopter Configuration.',
+      aim: 'To execute the full mechanical assembly, electrical wiring, motor rotation verification, and flight controller integration for a standard Quadcopter-X multirotor.',
       steps: [
         {
           stepNo: 1,
@@ -1012,7 +1013,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'pick',
           targetComponentId: 'frame_f450',
           targetComponentName: 'F450 Quad-X Carbon Frame Plates',
-          instruction: 'Place the F450 main structural frame onto the assembly table.',
+          instruction: 'Place the F450 main structural center plates with integrated power distribution onto the assembly table.',
         },
         {
           stepNo: 2,
@@ -1063,7 +1064,7 @@ export const HardwareWorkbenchView: React.FC = () => {
         },
         {
           stepNo: 7,
-          title: 'Install 1045 Carbon Propellers & Verify Pre-Arm Readiness',
+          title: 'Install 1045 Carbon Propellers & Verify Yaw Torque Equilibrium',
           actionType: 'mount',
           targetComponentId: 'props_1045',
           targetComponentName: '1045 Carbon-Reinforced Propellers (x4)',
@@ -1073,8 +1074,8 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
     10: {
       expNo: 10,
-      title: 'KK2.1.5 Flight Controller Sensor Calibration & Firmware Upload',
-      aim: 'Calibrate on-board MPU6050 6-axis gyro/accelerometer, tune PID stabilization loops (P-gain, I-gain), and program motor mixer via USBasp.',
+      title: 'Drone Flight Controller Programming and Calibration (KK 2.1.5).',
+      aim: 'To configure, calibrate, and tune a KK 2.1.5 multi-rotor control board using its on-board graphic LCD display, menu navigation buttons, and sensor diagnostics.',
       steps: [
         {
           stepNo: 1,
@@ -1082,7 +1083,7 @@ export const HardwareWorkbenchView: React.FC = () => {
           actionType: 'pick',
           targetComponentId: 'fc_kk215',
           targetComponentName: 'KK2.1.5 Multi-Rotor Flight Controller',
-          instruction: 'Place the KK2.1.5 controller on the anti-static mat with access to buttons and ISP header.',
+          instruction: 'Place the KK2.1.5 controller on the anti-static mat with access to buttons, LCD display, and ISP header.',
         },
         {
           stepNo: 2,
@@ -2007,8 +2008,8 @@ export const HardwareWorkbenchView: React.FC = () => {
             </group>
           )}
 
-          {/* EX 2: Fixed-Wing Assembly */}
-          {selectedExpNo === 2 && (
+          {/* EX 2 & EX 8: Fixed-Wing Assembly & CG Balancing */}
+          {(selectedExpNo === 2 || selectedExpNo === 8) && (
             <group position={[0, 0.4 + explodeRatio * 0.5, 0]}>
               {currentCompletedSteps.length > 0 ? (
                 <FixedWingModel
@@ -2133,17 +2134,6 @@ export const HardwareWorkbenchView: React.FC = () => {
             </group>
           )}
 
-          {/* EX 8: Wind Tunnel Airfoil */}
-          {selectedExpNo === 8 && (
-            <group position={[0, 0.4, 0]}>
-              {currentCompletedSteps.includes(1) && (
-                <mesh rotation={[0, 0, 0.15]}>
-                  <boxGeometry args={[0.2, 1.2, 3.0]} />
-                  <meshStandardMaterial color="#38bdf8" metalness={0.8} roughness={0.2} />
-                </mesh>
-              )}
-            </group>
-          )}
 
           {/* EX 10: KK2.1.5 Board */}
           {selectedExpNo === 10 && (

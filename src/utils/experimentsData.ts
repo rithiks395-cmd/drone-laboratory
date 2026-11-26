@@ -3,7 +3,7 @@ import { ExperimentInfo } from '../types/experiments';
 export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   {
     id: 1,
-    title: 'Payload and Weight Estimation of UAV',
+    title: 'Payload and Weight Estimation.',
     shortTitle: 'Weight & Payload',
     category: 'Design & Weight',
     description: 'Estimate all sub-component masses, compute Maximum Takeoff Weight (MTOW), structural fraction, payload capacity, and required motor thrust-to-weight ratio.',
@@ -26,7 +26,7 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 2,
-    title: 'Fixed Wing UAV Frame and Avionics Components Assembling',
+    title: 'Fixed Wing UAV Frame and Avionics Components Assembling.',
     shortTitle: 'Fixed Wing Assembly',
     category: 'Assembly',
     description: 'Assemble airframe components (fuselage, wings, empennage) and integrate avionics (motor, ESC, servos, battery, flight controller) in 3D with exploded inspection.',
@@ -73,11 +73,11 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 4,
-    title: 'UAV Control Testing and Trimming Procedure Using Transmitter and Servo',
+    title: 'UAV Control Testing & Trimming Procedure using Transmitter and Servo.',
     shortTitle: 'Control & Trimming',
     category: 'Avionics & Control',
     description: 'Interact with virtual transmitter gimbals to deflect ailerons, elevator, and rudder surfaces in 3D, and execute trim correction for neutral aerodynamic trim.',
-    aim: 'To verify primary control surface deflections (Aileron, Elevator, Rudder) against transmitter stick inputs and calibrate digital sub-trims to achieve zero aerodynamic offset.',
+    aim: 'To verify primary control surface deflections (Ailerons, Elevator, Rudder) against transmitter stick PWM pulse widths and calibrate digital sub-trims to achieve zero aerodynamic offset.',
     softwareRequired: ['Virtual RC Transmitter Simulator', 'Interactive Servo & Linkage Kinematics Engine', 'Pulse Width (PWM) Oscilloscope HUD'],
     componentsUsed: ['2.4GHz 6-Channel Transmitter (Mode 2)', 'Digital 9g Micro Servos (x4)', 'Control Horns and Pushrods', 'RC Receiver with PWM outputs', 'Receiver Battery Pack 5V'],
     theory: 'RC servo motors respond to 50Hz PWM pulses between 1000µs and 2000µs, with 1500µs representing neutral center. Stick movements translate to angular servo horn deflection (+/- 45°), pushing control horns to pitch, roll, and yaw the aircraft.',
@@ -96,11 +96,11 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 5,
-    title: 'Lithium Polymer Battery Testing, Balancing and Maintenance',
+    title: 'Lithium Polymer Battery Testing, Balancing and Maintenance.',
     shortTitle: 'LiPo Battery Lab',
     category: 'Power Systems',
     description: 'Monitor individual cell voltages (2S to 6S), simulate CC/CV balance charging, storage discharge, internal resistance (IR), and observe thermal safety margins.',
-    aim: 'To investigate Lithium-Polymer (LiPo) electrochemical characteristics, demonstrate individual cell voltage balancing, and study safe storage procedures.',
+    aim: 'To test Lithium-Polymer (LiPo) electrochemical pack health, measure individual cell terminal voltages and internal resistance (IR), demonstrate microprocessor balance charging, and maintain safe storage voltage.',
     softwareRequired: ['LiPo Cell Electrochemical Simulator', 'Microprocessor Smart Charger Interface', 'Thermal Gradient Monitor'],
     componentsUsed: ['2S (7.4V), 3S (11.1V), 4S (14.8V), 6S (22.2V) LiPo Battery Packs', 'JST-XH Balance Leads & XT60 Discharge Connector', 'Computerized Balance Charger (iMAX B6 style)', 'Digital Battery Cell Checker & IR Meter'],
     theory: 'LiPo cells have a nominal voltage of 3.7V, maximum full charge of 4.20V, and critical minimum cutoff of 3.20V. In a multi-cell pack, variations in internal resistance cause cell voltage drift. Balance charging bleeds current from higher-voltage cells until all cells equalize within +/- 5mV.',
@@ -119,11 +119,11 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 6,
-    title: 'RC Transmitter Resetting, Calibration and Frequency Binding',
+    title: 'RC Transmitter Resetting, Calibration and Frequency Binding.',
     shortTitle: 'Transmitter & Binding',
     category: 'Avionics & Control',
     description: 'Perform factory reset, 4-axis stick gimbal endpoint calibration, sub-trim alignment, and execute the 2.4GHz FHSS frequency binding sequence with the receiver.',
-    aim: 'To perform complete transmitter memory reset, calibrate analog stick potentiometer endpoints, and execute the RF binding sequence with an airborne receiver.',
+    aim: 'To perform complete transmitter memory reset, calibrate analog stick potentiometer endpoints, execute the RF binding sequence with an airborne receiver, and configure failsafe motor cutoff.',
     softwareRequired: ['Transmitter Firmware Configuration Utility', 'Analog Stick Calibration Wizard', '2.4GHz FHSS RF Link Simulator'],
     componentsUsed: ['FlySky FS-i6X / FrSky Taranis 2.4GHz Transmitter', 'FS-iA6B / X8R Receiver', 'Receiver Bind Plug', '5V Regulated Power Source', 'PWM Status LEDs'],
     theory: 'Radio control systems utilize 2.4GHz Frequency Hopping Spread Spectrum (FHSS) modulation. Binding locks the receiver uniquely to the transmitter’s Global Unique ID (GUID) to prevent co-channel interference. Calibration ensures stick potentiometers span full 1000µs to 2000µs range.',
@@ -142,7 +142,7 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 7,
-    title: 'Propeller Balancing Procedure',
+    title: 'Propeller Balancing Procedure.',
     shortTitle: 'Propeller Balancing',
     category: 'Propulsion',
     description: 'Detect static and dynamic unbalance on 2-blade and 3-blade props on a magnetic suspension stand, apply corrective mass, and verify vibration reduction via FFT spectrum.',
@@ -165,7 +165,7 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 8,
-    title: 'Fixed Wing UAV Centre of Gravity Calculation and Balancing',
+    title: 'Fixed Wing UAV Centre of Gravity Calculation and Balancing.',
     shortTitle: 'Center of Gravity',
     category: 'Design & Weight',
     description: 'Calculate Longitudinal CG using reference datum moments, compute Mean Aerodynamic Chord (MAC), slide battery position, and observe static stability margins.',
@@ -188,7 +188,7 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 9,
-    title: 'Drone Base and Avionic Components Assembling in Quadcopter Configuration',
+    title: 'Drone Base and Avionic components assembling in Quadcopter Configuration.',
     shortTitle: 'Quadcopter Assembly',
     category: 'Assembly',
     description: 'Assemble a complete Quad-X drone in 3D: carbon arms, 4 brushless motors with CW/CCW indicators, ESCs, flight controller, GPS mast, and inspect wiring traces.',
@@ -212,7 +212,7 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
   },
   {
     id: 10,
-    title: 'Drone Flight Controller Programming and Calibration (KK 2.1.5)',
+    title: 'Drone Flight Controller Programming and Calibration (KK 2.1.5).',
     shortTitle: 'KK 2.1.5 FC Setup',
     category: 'Avionics & Control',
     description: 'Simulate the retro KK 2.1.5 flight controller: navigate 128x64 LCD menus, perform accelerometer calibration, PI loop gain tuning, ESC throttle range cal, and motor layout checks.',

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Grid, Stars, PerspectiveCamera } from '@react-three/drei';
 import { useLab } from '../../context/LabContext';
@@ -10,15 +10,14 @@ import {
   Play, 
   CheckCircle2, 
   RotateCcw, 
+  RotateCw,
   Zap, 
   ShieldCheck, 
   FileText, 
-  ChevronRight, 
   Search,
   Camera,
   Sun,
   Moon,
-  Compass,
   ArrowRight,
   Maximize2,
   Minimize2,
@@ -26,14 +25,20 @@ import {
   XCircle,
   Move,
   FolderPlus,
+  Folder,
   Box,
   Cable,
   CheckCheck,
   PanelRightClose,
   PanelRightOpen,
-  Eye,
   Crosshair,
-  Sliders
+  Sparkles,
+  Trash2,
+  ExternalLink,
+  Download,
+  Activity,
+  Sliders,
+  Compass
 } from 'lucide-react';
 
 // 3D Models
@@ -82,96 +87,87 @@ export interface ExperimentGuide {
   steps: AssemblyStep[];
 }
 
-// 3D Miniature Model Thumbnail for Components Tray
-const Component3DThumbnail: React.FC<{ visualType: string; isInstalled: boolean }> = ({ visualType, isInstalled }) => {
+export interface SavedProject {
+  id: string;
+  name: string;
+  folderName: string;
+  expNo: number;
+  savedAt: string;
+  completedSteps: number[];
+  notes?: string;
+}
+
+const STORAGE_KEY = 'drone_lab_saved_projects';
+
+// High-fidelity Component Visual Icon/Badge
+const ComponentVisualBadge: React.FC<{ visualType: string; isInstalled: boolean }> = ({ visualType, isInstalled }) => {
+  const getBadgeStyle = () => {
+    switch (visualType) {
+      case 'motor':
+        return { label: 'BLDC', color: 'from-amber-500 to-orange-600', icon: '⚙' };
+      case 'esc':
+        return { label: '30A ESC', color: 'from-blue-600 to-cyan-600', icon: '⚡' };
+      case 'prop':
+        return { label: '1045 PROP', color: 'from-slate-700 to-slate-900', icon: '✦' };
+      case 'battery':
+        return { label: '3S LiPo', color: 'from-emerald-600 to-teal-700', icon: '🔋' };
+      case 'fc':
+        return { label: 'KK2.1.5', color: 'from-purple-600 to-indigo-700', icon: '🎛' };
+      case 'frame':
+        return { label: 'F450 FRAME', color: 'from-cyan-700 to-blue-800', icon: '⬡' };
+      case 'arm':
+        return { label: 'PA66 ARM', color: 'from-rose-600 to-red-700', icon: '━' };
+      case 'servo':
+        return { label: 'SG90 SERVO', color: 'from-sky-500 to-blue-600', icon: '↻' };
+      case 'rx':
+      case 'tx':
+        return { label: '2.4GHz RF', color: 'from-violet-600 to-purple-800', icon: '📡' };
+      default:
+        return { label: 'HARDWARE', color: 'from-slate-700 to-slate-800', icon: '🔧' };
+    }
+  };
+
+  const badge = getBadgeStyle();
+
   return (
-    <div className={`w-14 h-14 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 transition-all ${
-      isInstalled 
-        ? 'bg-emerald-950/40 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.3)]' 
-        : 'bg-slate-900 border-cyan-500/30'
+    <div className={`w-14 h-14 rounded-xl border flex flex-col items-center justify-center shrink-0 transition-all select-none ${
+      isInstalled
+        ? 'bg-emerald-950/60 border-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.4)] text-emerald-300'
+        : `bg-gradient-to-br ${badge.color} border-white/20 text-white shadow-md`
     }`}>
-      <Canvas className="w-full h-full" camera={{ position: [0, 0, 3], fov: 45 }}>
-        <ambientLight intensity={1.2} />
-        <directionalLight position={[2, 4, 3]} intensity={2.0} />
-        <group scale={0.7} rotation={[0.4, 0.6, 0]}>
-          {visualType === 'frame' && (
-            <mesh>
-              <cylinderGeometry args={[1, 1, 0.1, 6]} />
-              <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.2} />
-            </mesh>
-          )}
-          {visualType === 'arm' && (
-            <mesh rotation={[0, 0, Math.PI / 4]}>
-              <boxGeometry args={[2, 0.2, 0.3]} />
-              <meshStandardMaterial color="#ef4444" metalness={0.4} roughness={0.4} />
-            </mesh>
-          )}
-          {visualType === 'motor' && (
-            <group scale={0.6}>
-              <BLDCMotorModel scale={0.9} spinning={false} rpm={0} />
-            </group>
-          )}
-          {visualType === 'esc' && (
-            <group scale={0.7}>
-              <ESCModel scale={0.8} ampRating={30} />
-            </group>
-          )}
-          {visualType === 'prop' && (
-            <group scale={0.5}>
-              <PropellerModel scale={0.8} spinning={false} rpm={0} blades={2} />
-            </group>
-          )}
-          {visualType === 'battery' && (
-            <group scale={0.6}>
-              <LiPoBatteryModel scale={0.8} cells={3} />
-            </group>
-          )}
-          {visualType === 'fc' && (
-            <group scale={0.6}>
-              <KK215BoardModel scale={0.9} />
-            </group>
-          )}
-          {visualType === 'servo' && (
-            <group scale={0.6}>
-              <ServoMotorModel scale={0.9} angle={45} />
-            </group>
-          )}
-          {visualType === 'thrust_rig' && (
-            <mesh>
-              <boxGeometry args={[1.6, 0.6, 1.2]} />
-              <meshStandardMaterial color="#3b82f6" metalness={0.7} roughness={0.3} />
-            </mesh>
-          )}
-          {visualType === 'balancer' && (
-            <group scale={0.4}>
-              <BalanceStandModel scale={0.8} />
-            </group>
-          )}
-          {!['frame', 'arm', 'motor', 'esc', 'prop', 'battery', 'fc', 'servo', 'thrust_rig', 'balancer'].includes(visualType) && (
-            <mesh>
-              <octahedronGeometry args={[0.9]} />
-              <meshStandardMaterial color="#06b6d4" wireframe />
-            </mesh>
-          )}
-        </group>
-      </Canvas>
+      <span className="text-lg leading-none font-bold">{badge.icon}</span>
+      <span className="text-[9px] font-mono font-black mt-0.5 tracking-tight uppercase">
+        {badge.label}
+      </span>
     </div>
   );
 };
 
 export const HardwareWorkbenchView: React.FC = () => {
-  const { setSelectedReportExpId, setIsRecordModalOpen, atmosphereTheme } = useLab();
+  const { setSelectedReportExpId, setIsRecordModalOpen, captureScreenshot, atmosphereTheme } = useLab();
+  const { currentUser } = useAuth();
   const workbenchRef = useRef<HTMLDivElement>(null);
   const orbitControlsRef = useRef<any>(null);
 
   // Big Screen Fullscreen Workbench
   const [isFullscreenWorkbench, setIsFullscreenWorkbench] = useState<boolean>(false);
 
-  // Project State: Initialized via the Welcome Screen
+  // Project State
   const [hasActiveProject, setHasActiveProject] = useState<boolean>(false);
-  const [projectName, setProjectName] = useState<string>('My UAV Assembly Project');
-  const [tempProjectName, setTempProjectName] = useState<string>('UAV Quadcopter Prototype - 2026');
+  const [activeProjectId, setActiveProjectId] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>('Quadcopter Prototype');
+  const [folderName, setFolderName] = useState<string>('Flight Lab 2026');
   const [selectedExpNo, setSelectedExpNo] = useState<number>(1);
+
+  // Saved Projects List from LocalStorage
+  const [savedProjects, setSavedProjects] = useState<SavedProject[]>([]);
+  const [showNewProjectModal, setShowNewProjectModal] = useState<boolean>(false);
+  const [showFolderBrowserModal, setShowFolderBrowserModal] = useState<boolean>(false);
+
+  // Form states for New Project modal
+  const [tempProjectName, setTempProjectName] = useState<string>('UAV Quadcopter Assembly');
+  const [tempFolderName, setTempFolderName] = useState<string>('Semester Practical Labs');
+  const [tempSelectedExp, setTempSelectedExp] = useState<number>(1);
 
   // Floating Right-Side Dock State: Tab can be 'components' or 'procedure'
   const [rightPanelTab, setRightPanelTab] = useState<'components' | 'procedure'>('procedure');
@@ -209,6 +205,10 @@ export const HardwareWorkbenchView: React.FC = () => {
     1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [], 8: [], 9: [], 10: []
   });
 
+  // Undo / Redo History Stack
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [redoStack, setRedoStack] = useState<string[]>([]);
+
   // Circuit Diagram Modal State
   const [activeSchematicModal, setActiveSchematicModal] = useState<{
     title: string;
@@ -219,7 +219,7 @@ export const HardwareWorkbenchView: React.FC = () => {
     schematicText: string;
   } | null>(null);
 
-  // Live Experiment Test Controls
+  // Live Experiment Test Controls & Monitor
   const [testThrottle, setTestThrottle] = useState<number>(0);
   const [isTestRunning, setIsTestRunning] = useState<boolean>(false);
   const [activeServoAngle, setActiveServoAngle] = useState<number>(45);
@@ -562,7 +562,29 @@ export const HardwareWorkbenchView: React.FC = () => {
     },
   ]);
 
-  // Master Guided Execution Protocols for Experiments 1 through 10 with detailed Connection Diagrams
+  // Load saved projects on mount
+  useEffect(() => {
+    try {
+      const data = localStorage.getItem(STORAGE_KEY);
+      if (data) {
+        setSavedProjects(JSON.parse(data));
+      }
+    } catch (e) {
+      console.error('Failed to load saved projects', e);
+    }
+  }, []);
+
+  // Save projects to localStorage
+  const persistProjects = (projects: SavedProject[]) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(projects));
+      setSavedProjects(projects);
+    } catch (e) {
+      console.error('Failed to save project', e);
+    }
+  };
+
+  // Master Guided Execution Protocols for Experiments 1 through 10
   const experimentGuides: Record<number, ExperimentGuide> = useMemo(() => ({
     1: {
       expNo: 1,
@@ -1099,24 +1121,16 @@ export const HardwareWorkbenchView: React.FC = () => {
     return components.filter((c) => c.installed).reduce((acc, c) => acc + c.weightG, 0);
   }, [components]);
 
-  // Handle Drag & Drop Component Validation (Green / Red feedback)
+  // Handle Drag & Drop Component Validation (Green / Red feedback + Undo stack)
   const handleDropComponent = (droppedCompId: string) => {
-    if (!hasActiveProject) {
-      setValidationAlert({
-        type: 'error',
-        title: 'NO PROJECT ACTIVE',
-        message: 'Please initialize an assembly project first before placing parts.',
-        componentName: 'Workbench Locked',
-      });
-      return;
-    }
+    if (!hasActiveProject) return;
 
     if (isExpFullyAssembled) {
       setValidationAlert({
         type: 'success',
         title: 'ASSEMBLY COMPLETE',
-        message: 'All procedure components are installed! Click "RUN & EXECUTE EXPERIMENT" to test.',
-        componentName: 'Ready for Test',
+        message: 'All components assembled! Click "RUN & EXECUTE EXPERIMENT" to test.',
+        componentName: 'Ready',
       });
       return;
     }
@@ -1125,7 +1139,7 @@ export const HardwareWorkbenchView: React.FC = () => {
     if (!component) return;
 
     if (nextExpectedStep && nextExpectedStep.targetComponentId === droppedCompId) {
-      // CORRECT COMPONENT: Green Success Feedback
+      // SUCCESS: Correct component
       setComponents((prev) =>
         prev.map((c) => (c.id === droppedCompId ? { ...c, installed: true } : c))
       );
@@ -1136,53 +1150,198 @@ export const HardwareWorkbenchView: React.FC = () => {
         [selectedExpNo]: updatedCompleted,
       }));
 
+      // Push to Undo stack, clear Redo stack
+      setUndoStack((prev) => [...prev, droppedCompId]);
+      setRedoStack([]);
+
+      // Auto-save progress to saved projects
+      if (activeProjectId) {
+        const updated = savedProjects.map((p) =>
+          p.id === activeProjectId ? { ...p, completedSteps: updatedCompleted } : p
+        );
+        persistProjects(updated);
+      }
+
       const isNowFullyDone = updatedCompleted.length === activeExpSteps.length;
 
       setValidationAlert({
         type: 'success',
         title: 'AUTOCAD ASSEMBLY SNAPPED',
         message: isNowFullyDone
-          ? `✓ SUCCESS: Final part "${component.name}" mounted! Assembly is 100% complete and ready to execute.`
+          ? `✓ SUCCESS: "${component.name}" mounted! Assembly is 100% complete and ready to execute.`
           : `✓ SUCCESS: "${component.name}" snapped into CAD position! Proceed to Step ${nextExpectedStep.stepNo + 1}.`,
         componentName: component.name,
       });
 
-      // If finished, switch tab to procedure so user sees Execute button
       if (isNowFullyDone) {
         setRightPanelTab('procedure');
       }
     } else {
-      // WRONG COMPONENT: Red Error Feedback
+      // ERROR: Wrong component
       const expectedPart = nextExpectedStep?.targetComponentName || 'the next procedure component';
       setValidationAlert({
         type: 'error',
         title: 'WRONG COMPONENT SELECTED',
-        message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You selected "${component.name}". Follow procedure on the right!`,
+        message: `⚠ INCORRECT: Step ${nextExpectedStep?.stepNo || 1} requires "${expectedPart}". You chose "${component.name}". Follow procedure on the right!`,
         componentName: component.name,
       });
     }
 
-    // Auto-dismiss alert after 4.5 seconds
     setTimeout(() => {
       setValidationAlert(null);
     }, 4500);
   };
 
-  // Start / Create New Project Flow
-  const handleStartNewProject = (expNum: number, customName?: string) => {
-    setSelectedExpNo(expNum);
-    setProjectName(customName?.trim() || tempProjectName.trim() || `UAV Assembly - EX ${expNum}`);
+  // Undo Last Placed Component
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const lastCompId = undoStack[undoStack.length - 1];
+    const newUndo = undoStack.slice(0, -1);
+
+    // Unmark component installed
+    setComponents((prev) =>
+      prev.map((c) => (c.id === lastCompId ? { ...c, installed: false } : c))
+    );
+
+    // Revert step
+    const updatedCompleted = currentCompletedSteps.slice(0, -1);
     setCompletedSteps((prev) => ({
       ...prev,
-      [expNum]: [],
+      [selectedExpNo]: updatedCompleted,
+    }));
+
+    setUndoStack(newUndo);
+    setRedoStack((prev) => [...prev, lastCompId]);
+
+    setValidationAlert({
+      type: 'success',
+      title: 'ACTION UNDONE',
+      message: 'Reverted last component placement.',
+      componentName: 'Undo',
+    });
+  };
+
+  // Redo Component Placement
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    const compIdToRedo = redoStack[redoStack.length - 1];
+    const newRedo = redoStack.slice(0, -1);
+
+    setComponents((prev) =>
+      prev.map((c) => (c.id === compIdToRedo ? { ...c, installed: true } : c))
+    );
+
+    const step = activeExpSteps[currentCompletedSteps.length];
+    if (step) {
+      setCompletedSteps((prev) => ({
+        ...prev,
+        [selectedExpNo]: [...currentCompletedSteps, step.stepNo],
+      }));
+    }
+
+    setRedoStack(newRedo);
+    setUndoStack((prev) => [...prev, compIdToRedo]);
+  };
+
+  // Reset Workbench to Clean Empty State
+  const handleResetWorkbench = () => {
+    if (window.confirm('Reset this workbench? All mounted components will be returned to the tray.')) {
+      setComponents((prev) => prev.map((c) => ({ ...c, installed: false })));
+      setCompletedSteps((prev) => ({
+        ...prev,
+        [selectedExpNo]: [],
+      }));
+      setUndoStack([]);
+      setRedoStack([]);
+      setIsTestRunning(false);
+      setTestThrottle(0);
+      setValidationAlert({
+        type: 'success',
+        title: 'WORKBENCH RESET',
+        message: 'The workspace is now clean and empty.',
+        componentName: 'Reset',
+      });
+    }
+  };
+
+  // Create & Save Project Folder
+  const handleCreateNewProject = () => {
+    const newId = `proj_${Date.now()}`;
+    const pName = tempProjectName.trim() || `Assembly Project - EX ${tempSelectedExp}`;
+    const fName = tempFolderName.trim() || 'My Aerospace Projects';
+
+    const newProject: SavedProject = {
+      id: newId,
+      name: pName,
+      folderName: fName,
+      expNo: tempSelectedExp,
+      savedAt: new Date().toLocaleDateString() + ' ' + new Date().toLocaleTimeString(),
+      completedSteps: [],
+    };
+
+    const updated = [newProject, ...savedProjects];
+    persistProjects(updated);
+
+    setActiveProjectId(newId);
+    setProjectName(pName);
+    setFolderName(fName);
+    setSelectedExpNo(tempSelectedExp);
+    setCompletedSteps((prev) => ({
+      ...prev,
+      [tempSelectedExp]: [],
     }));
     setComponents((prev) => prev.map((c) => ({ ...c, installed: false })));
+    setUndoStack([]);
+    setRedoStack([]);
     setValidationAlert(null);
     setIsTestRunning(false);
     setTestThrottle(0);
     setExplodeRatio(0);
+    setShowNewProjectModal(false);
     setHasActiveProject(true);
     setRightPanelTab('procedure');
+  };
+
+  // Open an Existing Saved Project from Folder
+  const handleOpenSavedProject = (proj: SavedProject) => {
+    setActiveProjectId(proj.id);
+    setProjectName(proj.name);
+    setFolderName(proj.folderName);
+    setSelectedExpNo(proj.expNo);
+
+    // Restore completed steps
+    setCompletedSteps((prev) => ({
+      ...prev,
+      [proj.expNo]: proj.completedSteps || [],
+    }));
+
+    // Find target components belonging to completed steps and mark installed
+    const guide = experimentGuides[proj.expNo];
+    const completedIds = guide?.steps
+      .filter((s) => (proj.completedSteps || []).includes(s.stepNo))
+      .map((s) => s.targetComponentId) || [];
+
+    setComponents((prev) =>
+      prev.map((c) => ({
+        ...c,
+        installed: completedIds.includes(c.id),
+      }))
+    );
+
+    setUndoStack([]);
+    setRedoStack([]);
+    setShowFolderBrowserModal(false);
+    setHasActiveProject(true);
+    setRightPanelTab('procedure');
+  };
+
+  // Delete a Saved Project
+  const handleDeleteProject = (projId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (window.confirm('Delete this saved project?')) {
+      const updated = savedProjects.filter((p) => p.id !== projId);
+      persistProjects(updated);
+    }
   };
 
   // Switch AutoCAD Camera View Presets
@@ -1221,12 +1380,19 @@ export const HardwareWorkbenchView: React.FC = () => {
   const testPowerW = (parseFloat(testVoltageV) * parseFloat(testCurrentA)).toFixed(1);
   const testEfficiencyGW = parseFloat(testPowerW) > 0 ? (testThrustG / parseFloat(testPowerW)).toFixed(2) : '0.00';
 
+  // Screenshot capture for workspace/modal
+  const handleCaptureWorkspace = async () => {
+    setIsCapturingScreenshot(true);
+    await captureScreenshot(workbenchRef.current, selectedExpNo);
+    setIsCapturingScreenshot(false);
+  };
+
   // =========================================================================
-  // VIEW 1: WELCOME TO AERO-SPACE LAB SCREEN (When no project is open)
+  // VIEW 1: CLEAN "WELCOME TO AERO-SPACE LABORATORY WORKSPACE" ANIMATED PAGE
   // =========================================================================
   if (!hasActiveProject) {
     return (
-      <div className="fixed inset-0 z-40 flex flex-col items-center justify-between bg-[#030612] text-slate-100 overflow-y-auto font-sans select-none p-4 sm:p-8">
+      <div className="fixed inset-0 z-40 flex flex-col items-center justify-between bg-[#02050e] text-slate-100 overflow-hidden font-sans select-none p-6">
         
         {/* Background Cyber Starfield & Glowing Grids */}
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[#0c1f4e] via-[#050b1d] to-[#01040a] pointer-events-none"></div>
@@ -1236,141 +1402,260 @@ export const HardwareWorkbenchView: React.FC = () => {
           className="absolute inset-0 opacity-25 pointer-events-none"
           style={{
             backgroundImage: `
-              linear-gradient(to right, rgba(6, 182, 212, 0.25) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(6, 182, 212, 0.25) 1px, transparent 1px)
+              linear-gradient(to right, rgba(6, 182, 212, 0.3) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(6, 182, 212, 0.3) 1px, transparent 1px)
             `,
-            backgroundSize: '40px 40px',
+            backgroundSize: '48px 48px',
             maskImage: 'radial-gradient(ellipse at center, black 40%, transparent 85%)'
           }}
         />
 
-        {/* Ambient Neon Glows */}
-        <div className="absolute -top-32 -left-32 w-96 h-96 bg-cyan-500/25 rounded-full blur-[140px] pointer-events-none animate-pulse"></div>
-        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-amber-500/25 rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+        {/* Ambient Neon Cyber Glows */}
+        <div className="absolute -top-32 -left-32 w-[450px] h-[450px] bg-cyan-500/20 rounded-full blur-[140px] pointer-events-none animate-pulse"></div>
+        <div className="absolute -bottom-32 -right-32 w-[450px] h-[450px] bg-amber-500/20 rounded-full blur-[140px] pointer-events-none animate-pulse" style={{ animationDelay: '1.5s' }}></div>
+
+        {/* Rotating Aerospace Radar Reticle */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[340px] h-[340px] sm:w-[540px] sm:h-[540px] border border-cyan-500/20 rounded-full pointer-events-none animate-[spin_80s_linear_infinite]">
+          <div className="absolute inset-4 border border-dashed border-cyan-400/30 rounded-full"></div>
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_12px_#06b6d4]"></div>
+          <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-cyan-400 rounded-full shadow-[0_0_12px_#06b6d4]"></div>
+          <div className="absolute left-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-amber-400 rounded-full shadow-[0_0_12px_#f59e0b]"></div>
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-amber-400 rounded-full shadow-[0_0_12px_#f59e0b]"></div>
+        </div>
 
         {/* Top Header Badge */}
-        <div className="relative z-10 pt-4 flex flex-col items-center text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/15 text-cyan-300 text-xs sm:text-sm font-mono font-bold border border-cyan-400/50 mb-3 shadow-[0_0_20px_rgba(6,182,212,0.4)] backdrop-blur-md">
+        <div className="relative z-10 pt-6 flex flex-col items-center text-center">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-cyan-500/15 text-cyan-300 text-xs sm:text-sm font-mono font-bold border border-cyan-400/50 mb-4 shadow-[0_0_20px_rgba(6,182,212,0.4)] backdrop-blur-md">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping"></span>
-            <Wrench className="w-4 h-4 text-amber-300 animate-spin" style={{ animationDuration: '10s' }} />
-            <span className="tracking-widest uppercase">3D AUTOCAD HARDWARE INTEGRATION WORKBENCH</span>
+            <Compass className="w-4 h-4 text-cyan-300 animate-spin" style={{ animationDuration: '8s' }} />
+            <span className="tracking-widest uppercase">PRECISION 3D CAD AERONAUTICAL ASSEMBLY</span>
           </div>
 
-          {/* WELCOME TO AERO-SPACE LAB TITLE WITH BRIGHT GLOWING ANIMATION */}
+          {/* WELCOME TO AERO-SPACE LABORATORY WORKSPACE (CLEAN AS REQUESTED) */}
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-black tracking-tight text-white leading-tight">
-            <span className="block text-cyan-400 font-mono text-base sm:text-xl font-bold tracking-widest mb-1 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">
+            <span className="block text-cyan-400 font-mono text-base sm:text-xl font-bold tracking-widest mb-2 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)]">
               WELCOME TO
             </span>
-            <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_45px_rgba(6,182,212,0.9)] animate-pulse">
-              AERO - SPACE LAB
-            </span>
-            <span className="block mt-1 text-xl sm:text-2xl md:text-3xl font-mono text-amber-400 font-black tracking-wider drop-shadow-[0_0_20px_rgba(245,158,11,0.8)]">
-              ( 3D VIRTUAL ASSEMBLY BENCH )
+            <span className="bg-gradient-to-r from-cyan-300 via-sky-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_0_50px_rgba(6,182,212,0.9)] animate-pulse inline-block">
+              AERO - SPACE LABORATORY WORKSPACE
             </span>
           </h1>
 
-          <p className="mt-2 text-xs sm:text-sm text-slate-300 max-w-xl font-mono">
-            Drag-and-drop 3D hardware components, circuit wiring schematics, and realistic AutoCAD-style object manipulation.
+          <p className="mt-4 text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed font-mono">
+            Virtual 3D component drag-and-drop assembly, circuit connection diagrams, AutoCAD-style object manipulation, and live experiment telemetry execution.
           </p>
         </div>
 
-        {/* Center: Live 3D Interactive Rotating CAD Preview */}
-        <div className="relative z-10 w-full max-w-xl h-44 sm:h-52 my-3 rounded-2xl border border-cyan-500/30 bg-slate-950/60 backdrop-blur-md overflow-hidden shadow-[0_0_35px_rgba(6,182,212,0.2)]">
-          <Canvas camera={{ position: [0, 2.5, 4], fov: 45 }}>
-            <ambientLight intensity={1.2} />
-            <directionalLight position={[5, 8, 5]} intensity={2.0} />
+        {/* Center: Live 3D Rotating Aerospace Model in Single WebGL Canvas */}
+        <div className="relative z-10 w-full max-w-xl h-56 sm:h-64 my-auto rounded-3xl border border-cyan-500/30 bg-slate-950/40 backdrop-blur-md overflow-hidden shadow-[0_0_40px_rgba(6,182,212,0.25)]">
+          <Canvas camera={{ position: [0, 2.5, 4.5], fov: 45 }}>
+            <ambientLight intensity={1.4} />
+            <directionalLight position={[5, 10, 5]} intensity={2.2} />
+            <pointLight position={[-3, 2, 2]} intensity={1.0} color="#00f0ff" />
             <group rotation={[0.2, 0, 0]}>
-              <QuadcopterModel scale={0.9} spinning={true} throttle={4} showWiring={true} />
+              <QuadcopterModel scale={0.95} spinning={true} throttle={4} showWiring={true} />
             </group>
             <OrbitControls autoRotate autoRotateSpeed={2.0} enableZoom={false} />
           </Canvas>
-          <div className="absolute bottom-2 left-3 text-[10px] font-mono text-cyan-400 flex items-center gap-1.5 bg-black/60 px-2 py-0.5 rounded border border-cyan-500/20">
-            <Crosshair className="w-3 h-3 text-cyan-400" />
-            <span>Interactive 3D CAD Preview</span>
+          <div className="absolute bottom-3 left-4 text-[10px] font-mono text-cyan-400 flex items-center gap-1.5 bg-black/60 px-2.5 py-1 rounded-full border border-cyan-500/30">
+            <Crosshair className="w-3.5 h-3.5 text-cyan-400 animate-spin" style={{ animationDuration: '6s' }} />
+            <span>Interactive 3D Aerospace CAD Model</span>
           </div>
         </div>
 
-        {/* BOTTOM: CREATE NEW PROJECT & SAVE AS (AS REQUESTED BY USER) */}
-        <div className="relative z-10 w-full max-w-4xl rounded-2xl bg-gradient-to-br from-[#0a1226]/95 via-[#060b18]/95 to-[#030610]/95 border-2 border-amber-400/80 p-5 sm:p-6 shadow-[0_0_50px_rgba(245,158,11,0.5)] font-mono mb-4">
-          
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-amber-500/30 pb-3 mb-4 gap-2">
-            <div className="flex items-center gap-2">
-              <FolderPlus className="w-5 h-5 text-amber-400" />
-              <h2 className="text-sm sm:text-base font-black text-white tracking-wider">
-                CREATE NEW PROJECT & INITIALIZE WORKSPACE
-              </h2>
-            </div>
-            <span className="text-[11px] text-amber-300">
-              Select Ex No (1 to 10) & Choose Custom Project Name
-            </span>
-          </div>
-
-          {/* PROJECT NAME (SAVE AS) INPUT */}
-          <div className="mb-4">
-            <label className="block text-xs font-bold text-slate-200 mb-1.5 flex items-center gap-1.5">
-              <span>PROJECT NAME (SAVE AS):</span>
-              <span className="text-amber-400 text-[10px] font-normal">*Customizable</span>
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. F450 Quadcopter Integration, Fixed-Wing Assembly, Thrust Rig Calibration..."
-              value={tempProjectName}
-              onChange={(e) => setTempProjectName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border-2 border-cyan-500/40 text-amber-300 font-bold text-xs sm:text-sm focus:outline-none focus:border-amber-400 placeholder-slate-500 shadow-inner"
-            />
-          </div>
-
-          {/* EXPERIMENT SELECTOR GRID (EX 1 TO EX 10) */}
-          <label className="block text-xs font-bold text-slate-200 mb-2">
-            SELECT EXPERIMENT TO ASSEMBLE:
-          </label>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-h-44 sm:max-h-52 overflow-y-auto p-1 custom-scrollbar mb-4">
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
-              const guide = experimentGuides[num];
-              const isSelected = selectedExpNo === num;
-              return (
-                <button
-                  key={num}
-                  onClick={() => setSelectedExpNo(num)}
-                  className={`p-2.5 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-                    isSelected
-                      ? 'bg-amber-500/25 border-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)] ring-1 ring-amber-400'
-                      : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:border-cyan-400/60 hover:text-slate-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[11px] font-black ${isSelected ? 'text-amber-300' : 'text-cyan-400'}`}>
-                      EX {num}
-                    </span>
-                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-black/40 text-slate-400">
-                      {guide?.steps.length} Steps
-                    </span>
-                  </div>
-                  <div className="text-[10px] line-clamp-2 leading-tight">
-                    {guide?.title}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* INITIALIZE WORKSPACE BUTTON */}
+        {/* BOTTOM OF SAME PAGE: SMALL SLEEK BUTTONS [ NEW PROJECT ] & [ SAVED FOLDERS ] */}
+        <div className="relative z-10 pb-6 flex flex-col sm:flex-row items-center gap-3">
           <button
-            onClick={() => handleStartNewProject(selectedExpNo, tempProjectName)}
-            className="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-cyan-400 hover:from-amber-300 hover:to-cyan-300 text-slate-950 font-black text-sm tracking-widest shadow-[0_0_30px_rgba(245,158,11,0.6)] transition-all cursor-pointer transform hover:scale-[1.01] active:scale-95 flex items-center justify-center gap-2 border border-white/50"
+            onClick={() => setShowNewProjectModal(true)}
+            className="flex items-center gap-2.5 px-8 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 via-amber-500 to-cyan-400 hover:from-amber-300 hover:to-cyan-300 text-slate-950 font-black font-mono text-xs sm:text-sm tracking-wider shadow-[0_0_30px_rgba(245,158,11,0.6)] transition-all transform hover:scale-105 active:scale-95 cursor-pointer border-2 border-white/60"
           >
-            <span>ENTER EMPTY CAD WORKSPACE (EX {selectedExpNo})</span>
-            <ArrowRight className="w-4 h-4 text-slate-950" />
+            <FolderPlus className="w-4 h-4 text-slate-950" />
+            <span>NEW PROJECT</span>
           </button>
+
+          {savedProjects.length > 0 && (
+            <button
+              onClick={() => setShowFolderBrowserModal(true)}
+              className="flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 text-cyan-300 border-2 border-cyan-500/40 hover:border-cyan-400 font-bold font-mono text-xs sm:text-sm shadow-md transition-all cursor-pointer active:scale-95"
+            >
+              <Folder className="w-4 h-4 text-cyan-400" />
+              <span>SAVED FOLDERS ({savedProjects.length})</span>
+            </button>
+          )}
         </div>
+
+        {/* MODAL 1: NEW PROJECT & SAVE AS SEPARATE FOLDER */}
+        {showNewProjectModal && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <div className="relative max-w-xl w-full rounded-2xl bg-gradient-to-br from-[#0c142c] via-[#080e22] to-[#040816] border-2 border-amber-400 p-6 shadow-[0_0_70px_rgba(245,158,11,0.6)] font-mono text-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-amber-500/30 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <FolderPlus className="w-5 h-5 text-amber-400" />
+                  <h3 className="text-base font-black text-white">
+                    CREATE NEW ASSEMBLY PROJECT
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowNewProjectModal(false)}
+                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* FOLDER NAME INPUT (SEPARATE FOLDER FOR EXPERIMENTS) */}
+              <div className="mb-3">
+                <label className="block text-xs font-bold text-slate-200 mb-1 flex items-center gap-1.5">
+                  <Folder className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>PROJECT FOLDER NAME:</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Flight Lab 2026, Semester 6 Practicals, Drone Team Alpha..."
+                  value={tempFolderName}
+                  onChange={(e) => setTempFolderName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-cyan-500/40 text-cyan-300 font-bold text-xs focus:outline-none focus:border-cyan-400 placeholder-slate-500 shadow-inner"
+                />
+              </div>
+
+              {/* PROJECT NAME (SAVE AS) */}
+              <div className="mb-4">
+                <label className="block text-xs font-bold text-slate-200 mb-1 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-amber-400" />
+                  <span>PROJECT FILE NAME (SAVE AS):</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. F450 Quadcopter Model, Wing Test Setup..."
+                  value={tempProjectName}
+                  onChange={(e) => setTempProjectName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-300 font-bold text-xs focus:outline-none focus:border-amber-400 placeholder-slate-500 shadow-inner"
+                />
+              </div>
+
+              {/* SELECT EXPERIMENT */}
+              <label className="block text-xs font-bold text-slate-200 mb-2">
+                SELECT EXPERIMENT NO (1 TO 10):
+              </label>
+
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 max-h-44 overflow-y-auto p-1 custom-scrollbar mb-5">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => {
+                  const guide = experimentGuides[num];
+                  const isSelected = tempSelectedExp === num;
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => setTempSelectedExp(num)}
+                      className={`p-2 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-amber-500/25 border-amber-400 text-white ring-1 ring-amber-400'
+                          : 'bg-slate-900/80 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className={`text-[11px] font-bold ${isSelected ? 'text-amber-300' : 'text-cyan-400'}`}>
+                          EX {num}
+                        </span>
+                      </div>
+                      <div className="text-[9px] line-clamp-1 text-slate-400">
+                        {guide?.title}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={handleCreateNewProject}
+                className="w-full py-3 rounded-xl bg-gradient-to-r from-amber-400 via-amber-500 to-cyan-400 text-slate-950 font-black text-xs sm:text-sm tracking-wider shadow-md transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <span>INITIALIZE WORKSPACE & SAVE TO FOLDER</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL 2: MY SAVED FOLDERS & PROJECTS */}
+        {showFolderBrowserModal && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
+            <div className="relative max-w-xl w-full rounded-2xl bg-gradient-to-br from-[#0c142c] via-[#080e22] to-[#040816] border-2 border-cyan-400 p-6 shadow-[0_0_70px_rgba(6,182,212,0.5)] font-mono text-slate-100 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-cyan-500/30 pb-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Folder className="w-5 h-5 text-cyan-400" />
+                  <h3 className="text-base font-black text-white">
+                    SAVED EXPERIMENT PROJECT FOLDERS
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowFolderBrowserModal(false)}
+                  className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="space-y-2.5 max-h-72 overflow-y-auto p-1 custom-scrollbar mb-4">
+                {savedProjects.map((proj) => (
+                  <div
+                    key={proj.id}
+                    onClick={() => handleOpenSavedProject(proj)}
+                    className="p-3 rounded-xl bg-slate-900/90 border border-slate-800 hover:border-cyan-400 transition-all flex items-center justify-between cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">
+                        <Folder className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-white group-hover:text-cyan-300">
+                          {proj.name}
+                        </div>
+                        <div className="text-[10px] text-slate-400 flex items-center gap-2">
+                          <span>Folder: <strong>{proj.folderName}</strong></span>
+                          <span>•</span>
+                          <span className="text-amber-300 font-bold">EX {proj.expNo}</span>
+                          <span>•</span>
+                          <span>{proj.savedAt}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => handleDeleteProject(proj.id, e)}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
+                        title="Delete saved project"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="px-2.5 py-1 rounded-lg bg-cyan-600 text-white text-[10px] font-bold group-hover:bg-cyan-500">
+                        Open
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => {
+                  setShowFolderBrowserModal(false);
+                  setShowNewProjectModal(true);
+                }}
+                className="w-full py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/40 text-xs font-bold cursor-pointer"
+              >
+                + Create Another Project Folder
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // =========================================================================
-  // VIEW 2: FULL-PAGE CAD 3D WORKSPACE WITH DOCKED RIGHT PANELS
+  // VIEW 2: FULL-PAGE CAD 3D WORKSPACE (EXCELLENT ALIGNMENT & 3D COMPONENTS)
   // =========================================================================
   return (
     <div 
@@ -1382,29 +1667,28 @@ export const HardwareWorkbenchView: React.FC = () => {
       {/* 1. TOP AutoCAD CAD TOOLBAR */}
       <div className="bg-[#070c1e]/95 backdrop-blur-md border-b border-cyan-500/30 p-2 sm:px-3 flex flex-wrap items-center justify-between gap-2 shrink-0 z-20 shadow-lg text-xs font-mono">
         
-        {/* Project Name & New Project Button */}
+        {/* Left: Project Folder & New/Switch Project */}
         <div className="flex items-center gap-2">
           <button
             onClick={() => setHasActiveProject(false)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/60 font-bold transition-all cursor-pointer shrink-0"
-            title="Create or load a new assembly project"
+            title="Return to Welcome Screen & Project Folders"
           >
             <FolderPlus className="w-3.5 h-3.5 text-amber-400" />
-            <span>NEW PROJECT</span>
+            <span>PROJECTS</span>
           </button>
 
           <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-300 shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-            <span className="text-amber-300 font-bold max-w-[140px] sm:max-w-[200px] truncate" title={projectName}>
-              {projectName}
-            </span>
-            <span className="text-cyan-400 font-bold">| EX {selectedExpNo}</span>
+            <span className="text-cyan-400 font-bold truncate max-w-[100px] sm:max-w-[130px]">{folderName} /</span>
+            <span className="text-amber-300 font-bold truncate max-w-[110px] sm:max-w-[150px]">{projectName}</span>
+            <span className="text-cyan-300 font-bold">| EX {selectedExpNo}</span>
           </div>
         </div>
 
-        {/* AutoCAD 3D Camera Angle Presets */}
+        {/* Center 1: AutoCAD 3D Camera Angle Presets */}
         <div className="hidden md:flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
-          <span className="text-[10px] text-slate-400 px-1.5">VIEW:</span>
+          <span className="text-[10px] text-slate-400 px-1.5">CAD VIEW:</span>
           {(['iso', 'top', 'front', 'side'] as const).map((view) => (
             <button
               key={view}
@@ -1420,8 +1704,40 @@ export const HardwareWorkbenchView: React.FC = () => {
           ))}
         </div>
 
+        {/* Center 2: UNDO, REDO & RESET WORKBENCH CONTROLS (AS REQUESTED) */}
+        <div className="flex items-center gap-1 bg-slate-900/90 p-0.5 rounded-lg border border-cyan-500/30">
+          <button
+            onClick={handleUndo}
+            disabled={undoStack.length === 0}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            title="Undo Last Component Placement"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Undo</span>
+          </button>
+
+          <button
+            onClick={handleRedo}
+            disabled={redoStack.length === 0}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-bold text-slate-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+            title="Redo Component Placement"
+          >
+            <RotateCw className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Redo</span>
+          </button>
+
+          <button
+            onClick={handleResetWorkbench}
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-bold text-rose-300 hover:bg-rose-950/60 border-l border-slate-700 cursor-pointer"
+            title="Clear Workbench to Empty State"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Reset</span>
+          </button>
+        </div>
+
         {/* CAD Tools: Explode View Slider */}
-        <div className="hidden lg:flex items-center gap-2 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 text-[11px]">
+        <div className="hidden xl:flex items-center gap-2 bg-slate-900 px-2 py-1 rounded-lg border border-slate-800 text-[11px]">
           <span className="text-slate-400">EXPLODE:</span>
           <input
             type="range"
@@ -1430,12 +1746,12 @@ export const HardwareWorkbenchView: React.FC = () => {
             step={0.05}
             value={explodeRatio}
             onChange={(e) => setExplodeRatio(parseFloat(e.target.value))}
-            className="w-20 accent-cyan-400 cursor-pointer"
+            className="w-16 accent-cyan-400 cursor-pointer"
           />
           <span className="text-cyan-300 font-bold">{Math.round(explodeRatio * 100)}%</span>
         </div>
 
-        {/* Right Tools: Day/Night, Big Screen & Toggle Right Dock */}
+        {/* Right Tools: Day/Night, Screenshot, Fullscreen & Toggle Right Dock */}
         <div className="flex items-center gap-1.5">
           {/* Day / Night Toggle */}
           <button
@@ -1449,6 +1765,17 @@ export const HardwareWorkbenchView: React.FC = () => {
             <span className="hidden sm:inline">{isDay ? 'Day' : 'Night'}</span>
           </button>
 
+          {/* Screenshot Capture Button */}
+          <button
+            onClick={handleCaptureWorkspace}
+            disabled={isCapturingScreenshot}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-cyan-300 border border-cyan-500/30 text-[11px] cursor-pointer"
+            title="Take High-Resolution Screenshot of Workspace"
+          >
+            <Camera className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden sm:inline">Screenshot</span>
+          </button>
+
           {/* Big Screen Fullscreen Toggle */}
           <button
             onClick={() => setIsFullscreenWorkbench(!isFullscreenWorkbench)}
@@ -1456,7 +1783,6 @@ export const HardwareWorkbenchView: React.FC = () => {
             title="Full Page Workspace Viewport"
           >
             {isFullscreenWorkbench ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{isFullscreenWorkbench ? 'Exit Full' : 'Full Screen'}</span>
           </button>
 
           {/* Toggle Right Dock Button */}
@@ -1504,7 +1830,7 @@ export const HardwareWorkbenchView: React.FC = () => {
         </div>
       )}
 
-      {/* 2. FULL-PAGE 3D CAD CANVAS (Covers entire screen, first completely empty!) */}
+      {/* 2. FULL-PAGE 3D CAD CANVAS (Visible, fully illuminated, empty first!) */}
       <div 
         className="flex-1 relative w-full h-full overflow-hidden"
         onDragOver={(e) => {
@@ -1521,15 +1847,17 @@ export const HardwareWorkbenchView: React.FC = () => {
       >
         <Canvas shadows className="w-full h-full">
           <PerspectiveCamera makeDefault position={[4, 3.5, 5]} fov={45} />
-          <ambientLight intensity={isDay ? 1.4 : 0.6} />
-          <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.2 : 1.4} castShadow />
-          <pointLight position={[0, 4, 0]} intensity={0.9} color={isDay ? '#ffffff' : '#00f0ff'} />
+          {/* Intense, Crystal-Clear Illumination */}
+          <ambientLight intensity={isDay ? 1.6 : 0.8} />
+          <directionalLight position={[10, 15, 10]} intensity={isDay ? 2.5 : 1.6} castShadow />
+          <directionalLight position={[-10, 10, -10]} intensity={isDay ? 1.2 : 0.8} color="#38bdf8" />
+          <pointLight position={[0, 4, 0]} intensity={1.0} color={isDay ? '#ffffff' : '#00f0ff'} />
 
           {!isDay && (
             <Stars radius={100} depth={50} count={2500} factor={4} saturation={0.5} fade speed={1} />
           )}
 
-          {/* ESD Workbench Surface */}
+          {/* ESD Workbench Mat Surface */}
           <mesh position={[0, -0.05, 0]} receiveShadow>
             <boxGeometry args={[14, 0.1, 9]} />
             <meshStandardMaterial
@@ -1539,7 +1867,7 @@ export const HardwareWorkbenchView: React.FC = () => {
             />
           </mesh>
 
-          {/* AutoCAD CAD Grid with fine millimeter divisions */}
+          {/* Precision AutoCAD CAD Grid */}
           <Grid
             position={[0, 0.01, 0]}
             args={[12, 8]}
@@ -1554,27 +1882,24 @@ export const HardwareWorkbenchView: React.FC = () => {
 
           {/* 3D Coordinate Triad Axes Indicator in CAD Space */}
           <group position={[-5, 0.05, -3]}>
-            {/* X Axis - Red */}
             <mesh position={[0.5, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
               <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
               <meshBasicMaterial color="#ef4444" />
             </mesh>
-            {/* Y Axis - Green */}
             <mesh position={[0, 0.5, 0]}>
               <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
               <meshBasicMaterial color="#10b981" />
             </mesh>
-            {/* Z Axis - Blue */}
             <mesh position={[0, 0, 0.5]} rotation={[Math.PI / 2, 0, 0]}>
               <cylinderGeometry args={[0.02, 0.02, 1, 8]} />
               <meshBasicMaterial color="#3b82f6" />
             </mesh>
           </group>
 
-          {/* PROGRESSIVE MOUNTING: ONLY SHOW INSTALLED HARDWARE (Empty first!) */}
+          {/* VISIBLE 3D HARDWARE COMPONENTS (Empty first, mounts progressively) */}
           {currentCompletedSteps.length > 0 && (
             <>
-              {/* EX 1 & 9: Quadcopter-X Model Builds Up Progressively */}
+              {/* EX 1 & 9: Quadcopter-X Assembly */}
               {(selectedExpNo === 1 || selectedExpNo === 9) && (
                 <group position={[0, 0.1 + explodeRatio * 0.4, 0]}>
                   <QuadcopterModel
@@ -1587,7 +1912,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                 </group>
               )}
 
-              {/* EX 2: Fixed-Wing Model */}
+              {/* EX 2: Fixed-Wing Assembly */}
               {selectedExpNo === 2 && (
                 <group position={[0, 0.4 + explodeRatio * 0.5, 0]}>
                   <FixedWingModel
@@ -1720,7 +2045,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                 CAD WORKSPACE READY (EMPTY)
               </h3>
               <p className="text-[11px] text-slate-300 font-mono leading-relaxed">
-                Step 1: Pick <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the right dock and place it here.
+                Step 1: Drag & drop <strong>"{nextExpectedStep?.targetComponentName}"</strong> from the right dock onto the table.
               </p>
             </div>
           </div>
@@ -1736,11 +2061,11 @@ export const HardwareWorkbenchView: React.FC = () => {
           </div>
         )}
 
-        {/* 3. RIGHT-SIDE FLOATING / DOCKED PANEL: 3D COMPONENTS & PROCEDURE WITH CIRCUIT DIAGRAM */}
+        {/* 3. RIGHT-SIDE DOCKED PANEL: 3D COMPONENTS & PROCEDURE WITH CIRCUIT DIAGRAM */}
         {isRightPanelOpen && (
           <div className="absolute top-3 right-3 bottom-3 w-80 sm:w-96 md:w-[420px] bg-[#070b18]/95 backdrop-blur-md rounded-2xl border-2 border-cyan-500/40 shadow-[0_0_40px_rgba(6,182,212,0.3)] flex flex-col z-30 overflow-hidden font-mono text-xs">
             
-            {/* Dock Header Tabs: [ 📦 3D COMPONENTS ] vs [ 📋 PROCEDURE & CIRCUITS ] */}
+            {/* Dock Header Tabs: [ 📋 PROCEDURE & CIRCUITS ] vs [ 📦 3D COMPONENTS ] */}
             <div className="p-2 border-b border-cyan-500/30 bg-[#091126] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-1">
                 <button
@@ -1777,16 +2102,15 @@ export const HardwareWorkbenchView: React.FC = () => {
               </button>
             </div>
 
-            {/* TAB CONTENT A: 3D COMPONENTS SECTION (REALISTIC 3D MODELS OF OBJECTS) */}
+            {/* TAB CONTENT A: 3D COMPONENTS SECTION */}
             {rightPanelTab === 'components' && (
               <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Search & Category Filter */}
                 <div className="p-3 border-b border-slate-800 flex flex-col gap-2 bg-[#050914] shrink-0">
                   <div className="relative">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
-                      placeholder="Search 3D components (motor, esc, frame...)"
+                      placeholder="Search components (motor, esc, frame...)"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-cyan-500/30 text-slate-200 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-400"
@@ -1808,7 +2132,6 @@ export const HardwareWorkbenchView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 3D Component Cards List */}
                 <div className="flex-1 overflow-y-auto p-2.5 space-y-2.5 custom-scrollbar">
                   {filteredComponents.map((item) => (
                     <div
@@ -1824,10 +2147,8 @@ export const HardwareWorkbenchView: React.FC = () => {
                           : 'bg-slate-900/80 border-slate-800 hover:border-cyan-400/60'
                       }`}
                     >
-                      {/* Realistic 3D Miniature Model */}
-                      <Component3DThumbnail visualType={item.visualType} isInstalled={item.installed} />
+                      <ComponentVisualBadge visualType={item.visualType} isInstalled={item.installed} />
 
-                      {/* Component Info */}
                       <div className="flex-1 flex flex-col justify-between min-w-0">
                         <div>
                           <div className="flex items-center justify-between">
@@ -1867,7 +2188,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                 </div>
 
                 <div className="p-2 border-t border-slate-800 bg-[#040814] flex items-center justify-between text-[11px] shrink-0">
-                  <span className="text-slate-400">BENCH HARDWARE WEIGHT:</span>
+                  <span className="text-slate-400">TOTAL HARDWARE LOAD:</span>
                   <span className="text-cyan-300 font-bold">{totalInstalledWeight}g</span>
                 </div>
               </div>
@@ -2080,7 +2401,6 @@ export const HardwareWorkbenchView: React.FC = () => {
                 </div>
               </div>
 
-              {/* Graphical Schematic Box */}
               <div className="p-4 rounded-xl bg-slate-950 border-2 border-dashed border-cyan-500/50 text-cyan-200 text-center font-mono text-xs leading-relaxed shadow-inner">
                 {activeSchematicModal.schematicText}
               </div>
@@ -2098,7 +2418,7 @@ export const HardwareWorkbenchView: React.FC = () => {
         </div>
       )}
 
-      {/* 5. FINAL OUTPUT & OBSERVATION RECORD MODAL (When Experiment Executes) */}
+      {/* 5. FINAL OUTPUT MONITOR & OBSERVATION RECORD MODAL (When Experiment Executes) */}
       {showOutputModal && (
         <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200">
           <div className="relative max-w-3xl w-full rounded-2xl bg-gradient-to-br from-[#0c1630] via-[#091124] to-[#050914] border-2 border-cyan-400 p-6 sm:p-7 shadow-[0_0_60px_rgba(6,182,212,0.5)] font-sans">
@@ -2109,7 +2429,7 @@ export const HardwareWorkbenchView: React.FC = () => {
                 <CheckCircle2 className="w-6 h-6 text-emerald-400 animate-pulse" />
                 <div>
                   <h3 className="text-base sm:text-lg font-bold text-white">
-                    EX {selectedExpNo} LIVE EXPERIMENT RESULTS & OBSERVATION RECORD
+                    EX {selectedExpNo} LIVE EXPERIMENT MONITOR & OBSERVATION RECORD
                   </h3>
                   <p className="text-xs text-slate-400 font-mono">
                     {activeGuide.title}
@@ -2124,12 +2444,12 @@ export const HardwareWorkbenchView: React.FC = () => {
               </button>
             </div>
 
-            {/* Results Grid */}
+            {/* Results Grid with Monitored Values */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono mb-4">
               <div className="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/40">
                 <div className="text-slate-400 text-[10px]">PEAK THRUST:</div>
                 <div className="text-xl font-black text-cyan-300">{testThrustG} g</div>
-                <div className="text-[10px] text-emerald-400 mt-1">✓ Nominal Spec</div>
+                <div className="text-[10px] text-emerald-400 mt-1">✓ Nominal Thrust</div>
               </div>
               <div className="p-3 rounded-xl bg-slate-900/90 border border-emerald-500/40">
                 <div className="text-slate-400 text-[10px]">ROTATIONAL SPEED:</div>
@@ -2148,7 +2468,7 @@ export const HardwareWorkbenchView: React.FC = () => {
               </div>
             </div>
 
-            {/* Throttle Sweep Slider */}
+            {/* Live Throttle Sweep Slider */}
             <div className="p-3 rounded-xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2 font-mono text-xs mb-4">
               <div className="flex items-center justify-between">
                 <span className="text-slate-300 font-bold">PWM THROTTLE SWEEP:</span>
@@ -2164,19 +2484,30 @@ export const HardwareWorkbenchView: React.FC = () => {
               />
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex items-center justify-between pt-2">
-              <button
-                onClick={() => {
-                  setShowOutputModal(false);
-                  setSelectedReportExpId(selectedExpNo);
-                  setIsRecordModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer"
-              >
-                <FileText className="w-4 h-4" />
-                <span>GENERATE OFFICIAL LAB RECORD</span>
-              </button>
+            {/* Screenshot & Report Action Buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleCaptureWorkspace}
+                  disabled={isCapturingScreenshot}
+                  className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-mono font-bold text-xs shadow-glow-cyan flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <Camera className="w-4 h-4" />
+                  <span>{isCapturingScreenshot ? 'Capturing...' : 'SCREENSHOT OUTPUT'}</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    setShowOutputModal(false);
+                    setSelectedReportExpId(selectedExpNo);
+                    setIsRecordModalOpen(true);
+                  }}
+                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-mono font-bold text-xs shadow-glow-blue flex items-center gap-1.5 cursor-pointer active:scale-95"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>GENERATE OFFICIAL LAB RECORD</span>
+                </button>
+              </div>
 
               <button
                 onClick={() => setShowOutputModal(false)}

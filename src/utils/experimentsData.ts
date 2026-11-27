@@ -9,7 +9,7 @@ export const EXPERIMENTS_LIST: ExperimentInfo[] = [
     description: 'Estimate all sub-component masses, compute Maximum Takeoff Weight (MTOW), structural fraction, payload capacity, and required motor thrust-to-weight ratio.',
     aim: 'To determine the all-up weight (AUW), empty weight, structural fraction, payload capacity, and thrust-to-weight ratio of a multirotor UAV through analytical component breakdown.',
     softwareRequired: ['React Three Fiber 3D Simulation Engine', 'UAV Weight Analysis Matrix', 'Aerospace Load Estimator'],
-    componentsUsed: ['Quadcopter Carbon Frame (450mm)', '4x 2212 920KV Brushless Motors', '4x 30A ESCs', '4x 1045 Propellers', '3S 3300mAh LiPo Battery', 'Flight Controller (Pixhawk/APM/KK)', 'FS-iA6B 6CH Receiver', 'FPV Camera & 2-Axis Gimbal', 'Payload Mass'],
+    componentsUsed: ['Drone'],
     theory: 'The Maximum Takeoff Weight (MTOW) of a multirotor represents the total mass of the drone including structure, avionics, power system, and payload. For stable hovering and wind rejection, the total maximum thrust of all motors combined must provide a Thrust-to-Weight Ratio (TWR) of at least 2.0 : 1.',
     procedure: [
       'Enter or measure the mass of each structural and avionics component.',

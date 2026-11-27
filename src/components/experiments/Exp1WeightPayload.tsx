@@ -299,9 +299,19 @@ export const Exp1WeightPayload: React.FC = () => {
 
             {/* Frame */}
             <div>
-              <div className="flex justify-between text-slate-300 mb-1">
+              <div className="flex items-center justify-between text-slate-300 mb-1">
                 <span>Quadcopter Frame Structure</span>
-                <span className="font-mono text-cyan-400">{frameWeight} g</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="50"
+                    max="1500"
+                    value={frameWeight}
+                    onChange={(e) => setFrameWeight(Math.max(0, Number(e.target.value)))}
+                    className="w-16 px-1.5 py-0.5 rounded bg-slate-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs text-right focus:outline-none focus:border-cyan-400"
+                  />
+                  <span className="font-mono text-cyan-400 text-xs">g</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -310,15 +320,25 @@ export const Exp1WeightPayload: React.FC = () => {
                 step="5"
                 value={frameWeight}
                 onChange={(e) => setFrameWeight(Number(e.target.value))}
-                className="w-full accent-cyan-400"
+                className="w-full accent-cyan-400 cursor-pointer"
               />
             </div>
 
             {/* Motor Weight Each */}
             <div>
-              <div className="flex justify-between text-slate-300 mb-1">
+              <div className="flex items-center justify-between text-slate-300 mb-1">
                 <span>Brushless Motor (Each x4)</span>
-                <span className="font-mono text-cyan-400">{motorWeightEach} g (Total: {totalMotorWeight}g)</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="10"
+                    max="300"
+                    value={motorWeightEach}
+                    onChange={(e) => setMotorWeightEach(Math.max(0, Number(e.target.value)))}
+                    className="w-16 px-1.5 py-0.5 rounded bg-slate-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs text-right focus:outline-none focus:border-cyan-400"
+                  />
+                  <span className="font-mono text-cyan-400 text-xs">g (x4={totalMotorWeight}g)</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -326,15 +346,25 @@ export const Exp1WeightPayload: React.FC = () => {
                 max="180"
                 value={motorWeightEach}
                 onChange={(e) => setMotorWeightEach(Number(e.target.value))}
-                className="w-full accent-cyan-400"
+                className="w-full accent-cyan-400 cursor-pointer"
               />
             </div>
 
             {/* Battery */}
             <div>
-              <div className="flex justify-between text-slate-300 mb-1">
+              <div className="flex items-center justify-between text-slate-300 mb-1">
                 <span>LiPo Battery Pack</span>
-                <span className="font-mono text-cyan-400">{batteryWeight} g</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="50"
+                    max="2000"
+                    value={batteryWeight}
+                    onChange={(e) => setBatteryWeight(Math.max(0, Number(e.target.value)))}
+                    className="w-16 px-1.5 py-0.5 rounded bg-slate-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs text-right focus:outline-none focus:border-cyan-400"
+                  />
+                  <span className="font-mono text-cyan-400 text-xs">g</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -343,15 +373,25 @@ export const Exp1WeightPayload: React.FC = () => {
                 step="10"
                 value={batteryWeight}
                 onChange={(e) => setBatteryWeight(Number(e.target.value))}
-                className="w-full accent-cyan-400"
+                className="w-full accent-cyan-400 cursor-pointer"
               />
             </div>
 
             {/* Useful Payload */}
             <div>
-              <div className="flex justify-between text-slate-300 mb-1">
-                <span>Useful Mission Payload</span>
-                <span className="font-mono text-rose-400">{payloadWeight} g</span>
+              <div className="flex items-center justify-between text-slate-300 mb-1">
+                <span className="font-semibold text-rose-300">Useful Mission Payload</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="2500"
+                    value={payloadWeight}
+                    onChange={(e) => setPayloadWeight(Math.max(0, Number(e.target.value)))}
+                    className="w-16 px-1.5 py-0.5 rounded bg-slate-900 border border-rose-500/50 text-rose-300 font-mono text-xs text-right focus:outline-none focus:border-rose-400"
+                  />
+                  <span className="font-mono text-rose-400 text-xs font-bold">g</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -360,15 +400,25 @@ export const Exp1WeightPayload: React.FC = () => {
                 step="10"
                 value={payloadWeight}
                 onChange={(e) => setPayloadWeight(Number(e.target.value))}
-                className="w-full accent-rose-400"
+                className="w-full accent-rose-400 cursor-pointer"
               />
             </div>
 
             {/* Camera and Gimbal */}
             <div>
-              <div className="flex justify-between text-slate-300 mb-1">
+              <div className="flex items-center justify-between text-slate-300 mb-1">
                 <span>Camera & Gimbal</span>
-                <span className="font-mono text-cyan-400">{cameraGimbalWeight} g</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="800"
+                    value={cameraGimbalWeight}
+                    onChange={(e) => setCameraGimbalWeight(Math.max(0, Number(e.target.value)))}
+                    className="w-16 px-1.5 py-0.5 rounded bg-slate-900 border border-cyan-500/40 text-cyan-300 font-mono text-xs text-right focus:outline-none focus:border-cyan-400"
+                  />
+                  <span className="font-mono text-cyan-400 text-xs">g</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -376,15 +426,25 @@ export const Exp1WeightPayload: React.FC = () => {
                 max="500"
                 value={cameraGimbalWeight}
                 onChange={(e) => setCameraGimbalWeight(Number(e.target.value))}
-                className="w-full accent-cyan-400"
+                className="w-full accent-cyan-400 cursor-pointer"
               />
             </div>
 
             {/* Motor Max Thrust */}
             <div>
-              <div className="flex justify-between text-slate-300 mb-1">
+              <div className="flex items-center justify-between text-slate-300 mb-1">
                 <span>Max Thrust Per Motor</span>
-                <span className="font-mono text-emerald-400">{motorMaxThrustEach} g</span>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="200"
+                    max="4000"
+                    value={motorMaxThrustEach}
+                    onChange={(e) => setMotorMaxThrustEach(Math.max(0, Number(e.target.value)))}
+                    className="w-16 px-1.5 py-0.5 rounded bg-slate-900 border border-emerald-500/40 text-emerald-300 font-mono text-xs text-right focus:outline-none focus:border-emerald-400"
+                  />
+                  <span className="font-mono text-emerald-400 text-xs">g</span>
+                </div>
               </div>
               <input
                 type="range"
@@ -393,7 +453,7 @@ export const Exp1WeightPayload: React.FC = () => {
                 step="25"
                 value={motorMaxThrustEach}
                 onChange={(e) => setMotorMaxThrustEach(Number(e.target.value))}
-                className="w-full accent-emerald-400"
+                className="w-full accent-emerald-400 cursor-pointer"
               />
             </div>
           </div>

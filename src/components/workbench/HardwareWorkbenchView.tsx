@@ -2934,7 +2934,17 @@ export const HardwareWorkbenchView: React.FC = () => {
                         <Sliders className="w-3.5 h-3.5 text-cyan-400" />
                         MISSION PAYLOAD WEIGHT CONTROL:
                       </span>
-                      <span className="text-cyan-300 font-black">{testPayloadG} grams</span>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="number"
+                          min={0}
+                          max={1500}
+                          value={testPayloadG}
+                          onChange={(e) => setTestPayloadG(Math.max(0, parseInt(e.target.value || '0', 10)))}
+                          className="w-20 px-2 py-0.5 rounded bg-slate-900 border border-cyan-500/50 text-cyan-300 font-mono text-xs font-bold text-right focus:outline-none focus:border-cyan-400"
+                        />
+                        <span className="text-cyan-300 font-black">g</span>
+                      </div>
                     </div>
                     <input
                       type="range"
